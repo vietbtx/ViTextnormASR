@@ -77,7 +77,8 @@ def train(data_config, model_config, model_mode, n_blocks=0, n_tokens=0):
             loss = norm_loss + punc_loss
             norm_loss = norm_loss.item()
             punc_loss = punc_loss.item()
-            print(f"Epoch: {epoch} - step: {step+1}/{total_step} - loss: {norm_loss:.5f}/{punc_loss:.5f}")
+            end = "\n" if step % (total_step//8) == 0 else "\r"
+            print(f"Epoch: {epoch} - step: {step+1}/{total_step} - loss: {norm_loss:.5f}/{punc_loss:.5f}", end=end)
             writer.add_scalar("loss/norm", norm_loss, global_step)
             writer.add_scalar("loss/punc", punc_loss, global_step)
             writer.add_scalar('learning_rate', scheduler.optimizer.param_groups[0]["lr"], global_step)
