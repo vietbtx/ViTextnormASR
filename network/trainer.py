@@ -118,8 +118,9 @@ def train(data_config, model_config, model_mode, n_blocks=0, n_tokens=0):
                 scheduler.step()
                 model.zero_grad()
 
-            dev_norm_score, dev_punc_score = evaluate(model, data.dev_loader, data.norm_labels, data.punc_labels)
-            test_norm_score, test_punc_score = evaluate(model, data.test_loader, data.norm_labels, data.punc_labels)
+            if model_mode == "nojoint" or phase in ["norm", "punc"]:
+                dev_norm_score, dev_punc_score = evaluate(model, data.dev_loader, data.norm_labels, data.punc_labels)
+                test_norm_score, test_punc_score = evaluate(model, data.test_loader, data.norm_labels, data.punc_labels)
 
             if phase == "norm" or model_mode == "nojoint":
                 for name, score in dev_norm_score.items():
