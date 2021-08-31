@@ -1,0 +1,22 @@
+{
+  "name": "textnorm",
+  "dataset": {
+    "train": "./dataset/train.txt",
+    "dev": "./dataset/dev.txt",
+    "test": "./dataset/test.txt",
+    "norm_labels": ["B-CAP", "B-ALLCAP", "B-NUMB", "I-ALLCAP", "I-NUMB", "O"],
+    "punc_labels": ["PERIOD", "COMMA", "QMARK", "EMARK", "COLON", "SCOLON", "DASH", "O"]
+  },
+  "block_size": 100,
+  "logging": {
+    "tensorboard": "logs",
+    "cookie": "cookie"
+  },
+  "hyperparams": {
+    "lstm_dim": 256,
+    "learning_rate": 2e-5,
+    "n_epochs": 32,
+    "batch_size": 64,
+    "device": "cpu"
+  }
+}
