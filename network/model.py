@@ -77,15 +77,27 @@ class BERTModel(nn.Module):
         return norm_logits, punc_logits
 
     def forward(self, input_ids, mask_ids, norm_ids=None, punc_ids=None, next_blocks=None, prev_blocks=None):
-        bert_output, next_blocks, prev_blocks = self.forward_bert(input_ids, mask_ids, next_blocks, prev_blocks)
-        lstm_output = self.forward_lstm(bert_output, next_blocks, prev_blocks)
+        if norm_ids is None or punc_ids is None:
+            with torch.no_grad():
+                bert_output, next_blocks, prev_blocks = self.forward_bert(input_ids, mask_ids, next_blocks, prev_blocks)
+                lstm_output = self.forward_lstm(bert_output, next_blocks, prev_blocks)
+        else:
+            bert_output, next_blocks, prev_blocks = self.forward_bert(input_ids, mask_ids, next_blocks, prev_blocks)
+            lstm_output = self.forward_lstm(bert_output, next_blocks, prev_blocks)
+        
         norm_logits, punc_logits = self.forward_decoders(lstm_output, norm_ids, punc_ids)
 
-        if norm_ids is not None and punc_ids is not None:
-            norm_ids = norm_ids.view(-1)
-            punc_ids = punc_ids.view(-1)
-            norm_loss = self.norm_loss_fct(norm_logits.view(norm_ids.shape[0], -1), norm_ids)
-            punc_loss = self.punc_loss_fct(punc_logits.view(punc_ids.shape[0], -1), punc_ids)
-            return norm_loss, punc_loss
-        else:
+        if norm_ids is None and punc_ids is None:
             return norm_logits, punc_logits
+        else:
+            if norm_ids is not None:
+                norm_ids = norm_ids.view(-1)
+                norm_loss = self.norm_loss_fct(norm_logits.view(norm_ids.shape[0], -1), norm_ids)
+            else:
+                norm_loss = -1
+            if punc_ids is not None:
+                punc_ids = punc_ids.view(-1)
+                punc_loss = self.punc_loss_fct(punc_logits.view(punc_ids.shape[0], -1), punc_ids)
+            else:
+                punc_loss = -1
+            return norm_loss, punc_loss

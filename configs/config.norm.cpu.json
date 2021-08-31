@@ -15,7 +15,7 @@
   "hyperparams": {
     "lstm_dim": 256,
     "learning_rate": 2e-5,
-    "n_epochs": 100,
+    "n_epochs": 10,
     "batch_size": 64,
     "device": "cpu"
   }
