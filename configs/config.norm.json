@@ -15,8 +15,8 @@
   "hyperparams": {
     "lstm_dim": 256,
     "learning_rate": 2e-5,
-    "n_epochs": 16,
-    "batch_size": 32,
+    "n_epochs": 32,
+    "batch_size": 64,
     "device": "cuda"
   }
 }
