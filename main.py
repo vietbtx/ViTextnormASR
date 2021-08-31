@@ -8,16 +8,17 @@ if __name__=="__main__":
     velectra = "configs/config.velectra.json"
     
     train(config, velectra, "nojoint")
-    train(config, velectra, "nojoint", n_tokens=50)
-    train(config, velectra, "nojoint", n_blocks=10)
-    train(config, velectra, "nojoint", n_blocks=10, n_tokens=50)
-    
     train(config, velectra, "norm_to_punc")
-    train(config, velectra, "norm_to_punc", n_tokens=50)
-    train(config, velectra, "norm_to_punc", n_blocks=10)
-    train(config, velectra, "norm_to_punc", n_blocks=10, n_tokens=50)
-
     train(config, velectra, "punc_to_norm")
+
+    train(config, velectra, "nojoint", n_tokens=50)
+    train(config, velectra, "norm_to_punc", n_tokens=50)
     train(config, velectra, "punc_to_norm", n_tokens=50)
+    
+    train(config, velectra, "nojoint", n_blocks=10)
+    train(config, velectra, "norm_to_punc", n_blocks=10)
     train(config, velectra, "punc_to_norm", n_blocks=10)
+
+    train(config, velectra, "nojoint", n_blocks=10, n_tokens=50)
+    train(config, velectra, "norm_to_punc", n_blocks=10, n_tokens=50)
     train(config, velectra, "punc_to_norm", n_blocks=10, n_tokens=50)
