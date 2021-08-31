@@ -22,6 +22,9 @@ class BERTModel(nn.Module):
         elif self.mode == "punc_to_norm":
             self.norm_decoder = nn.Linear(lstm_dim*2 + self.n_punc_labels, self.n_norm_labels)
             self.punc_decoder = nn.Linear(lstm_dim*2, self.n_punc_labels)
+        
+        self.norm_loss_fct = nn.CrossEntropyLoss()
+        self.punc_loss_fct = nn.CrossEntropyLoss()
 
     
     @classmethod
@@ -79,11 +82,10 @@ class BERTModel(nn.Module):
         norm_logits, punc_logits = self.forward_decoders(lstm_output, norm_ids, punc_ids)
 
         if norm_ids is not None and punc_ids is not None:
-            loss_fct = nn.CrossEntropyLoss()
             norm_ids = norm_ids.view(-1)
             punc_ids = punc_ids.view(-1)
-            norm_loss = loss_fct(norm_logits.view(norm_ids.shape[0], -1), norm_ids)
-            punc_loss = loss_fct(punc_logits.view(punc_ids.shape[0], -1), punc_ids)
+            norm_loss = self.norm_loss_fct(norm_logits.view(norm_ids.shape[0], -1), norm_ids)
+            punc_loss = self.punc_loss_fct(punc_logits.view(punc_ids.shape[0], -1), punc_ids)
             return norm_loss, punc_loss
         else:
             return norm_logits, punc_logits
