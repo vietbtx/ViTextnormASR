@@ -33,10 +33,10 @@ def evaluate(model, data_loader, norm_dict, punc_dict):
     with torch.no_grad():
         pred_labels = {"norm": [], "punc": []}
         goal_labels = {"norm": [], "punc": []}
-        for batch in data_loader:
-            norm_logits, punc_logits = model(batch[0], batch[1], next_blocks=batch[4], prev_blocks=batch[5])
-            norm_labels = batch[2].view(-1).detach().cpu().numpy()
-            punc_labels = batch[3].view(-1).detach().cpu().numpy()
+        for input_ids, mask_ids, norm_ids, punc_ids, next_blocks, prev_blocks in data_loader:
+            norm_logits, punc_logits = model(input_ids, mask_ids, next_blocks=next_blocks, prev_blocks=prev_blocks)
+            norm_labels = norm_ids.view(-1).detach().cpu().numpy()
+            punc_labels = punc_ids.view(-1).detach().cpu().numpy()
             pred_norm_labels = torch.argmax(norm_logits, -1).view(-1).detach().cpu().numpy()
             pred_punc_labels = torch.argmax(punc_logits, -1).view(-1).detach().cpu().numpy()
             pred_labels["norm"].append([])
