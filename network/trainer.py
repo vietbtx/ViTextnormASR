@@ -3,7 +3,7 @@ from utils.data import Data
 from .model import BERTModel
 from utils.utils import get_score_metric
 from transformers import AdamW, get_linear_schedule_with_warmup as linear_schedule
-from torch.utils.tensorboard import SummaryWriter
+from tensorboardX import SummaryWriter
 
 
 def init_default_optimizer(model, bert_lr, lr, bert_weight_decay=0.05, adam_epsilon=1e-8):

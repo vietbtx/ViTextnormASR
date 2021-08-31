@@ -13,15 +13,14 @@ def read_json(file_name):
 def get_tokenizer(tokenizer_config):
     print(f"Reading tokenizer {tokenizer_config['name']}")
     Tokenizer = getattr(sys.modules["transformers"], tokenizer_config["type"])
-    tokenizer = Tokenizer.from_pretrained(
-        tokenizer_config["name"], do_lower_case=False)
+    tokenizer = Tokenizer.from_pretrained(tokenizer_config["name"], do_lower_case=False, cache_dir="cache")
     return tokenizer
 
 
 def get_model(model_config):
     print(f"Reading model {model_config['name']}")
     Model = getattr(sys.modules["transformers"], model_config["type"])
-    model = Model.from_pretrained(model_config["name"])
+    model = Model.from_pretrained(model_config["name"], cache_dir="cache")
     return model
 
 
