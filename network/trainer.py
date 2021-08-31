@@ -5,6 +5,12 @@ from utils.utils import get_score_metric
 from transformers import AdamW, get_linear_schedule_with_warmup as linear_schedule
 from tensorboardX import SummaryWriter
 
+try:
+    from apex import amp
+except:
+    print("Skip loading apex library")
+    amp = None
+
 
 def init_default_optimizer(model, bert_lr, lr, bert_weight_decay=0.05, adam_epsilon=1e-8):
     optimizer_grouped_parameters = []
@@ -64,6 +70,8 @@ def train(data_config, model_config, model_mode, n_blocks=0, n_tokens=0):
     model = BERTModel.from_config(model_config, data.norm_labels, data.punc_labels, data.lstm_dim, model_mode)
     model.to(data.device)
     optimizer = init_default_optimizer(model, data.learning_rate, 0.001)
+    if amp is not None:
+        model, optimizer = amp.initialize(model, optimizer, opt_level="O1")
     n_epochs = data.n_epochs
     total_step = len(data.train_loader)
     scheduler = linear_schedule(optimizer, num_warmup_steps=total_step//8, num_training_steps=n_epochs*total_step)
@@ -82,7 +90,11 @@ def train(data_config, model_config, model_mode, n_blocks=0, n_tokens=0):
             writer.add_scalar("loss/norm", norm_loss, global_step)
             writer.add_scalar("loss/punc", punc_loss, global_step)
             writer.add_scalar('learning_rate', scheduler.optimizer.param_groups[0]["lr"], global_step)
-            loss.backward()
+            if amp is not None:
+                with amp.scale_loss(loss, optimizer) as scaled_loss:
+                    scaled_loss.backward()
+            else:
+                loss.backward()
             optimizer.step()
             scheduler.step()
             model.zero_grad()
