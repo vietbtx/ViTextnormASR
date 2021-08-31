@@ -91,14 +91,17 @@ def train(data_config, model_config, model_mode, n_blocks=0, n_tokens=0):
                 if phase == "nojoint":
                     norm_loss, punc_loss = model(input_ids, mask_ids, norm_ids, punc_ids, next_blocks, prev_blocks)
                     loss = norm_loss + punc_loss
+                    norm_loss = norm_loss.item()
+                    punc_loss = punc_loss.item()
                 elif phase == "norm":
                     norm_loss, punc_loss = model(input_ids, mask_ids, norm_ids, None, next_blocks, prev_blocks)
                     loss = norm_loss
+                    norm_loss = norm_loss.item()
                 elif phase == "punc":
                     norm_loss, punc_loss = model(input_ids, mask_ids, None, punc_ids, next_blocks, prev_blocks)
                     loss = punc_loss
-                norm_loss = norm_loss.item()
-                punc_loss = punc_loss.item()
+                    punc_loss = punc_loss.item()
+                
                 end = "\n" if step % (total_step//8) == 0 else "\r"
                 print(f"Epoch: {epoch} - step: {step+1}/{total_step} - loss: {norm_loss:.5f}/{punc_loss:.5f}", end=end)
                 if norm_loss > 0:
