@@ -127,7 +127,7 @@ def train(data_config, model_config, model_mode, n_blocks=0, n_tokens=0):
                 test_f1_norm = test_norm_score["micro avg"]["f1-score"]
                 if dev_f1_norm > best_f1_scores["norm"]:
                     best_f1_scores["norm"] = dev_f1_norm
-                    print(f"Best F1 norm: {dev_f1_norm:.5f}/{test_f1_norm:.5f}")
+                    print(f"\nBest F1 norm: {dev_f1_norm:.5f}/{test_f1_norm:.5f}")
                     writer.add_text("dev_norm", str(dev_norm_score), epoch)
                     writer.add_text("test_norm", str(test_norm_score), epoch)
                 
@@ -140,6 +140,6 @@ def train(data_config, model_config, model_mode, n_blocks=0, n_tokens=0):
                 test_f1_punc = test_punc_score["micro avg"]["f1-score"]
                 if dev_f1_punc > best_f1_scores["punc"]:
                     best_f1_scores["punc"] = dev_f1_punc
-                    print(f"Best F1 punc: {dev_f1_punc:.5f}/{test_f1_punc:.5f}")
+                    print(f"\nBest F1 punc: {dev_f1_punc:.5f}/{test_f1_punc:.5f}")
                     writer.add_text("test_punc", str(test_punc_score), epoch)
                     writer.add_text("dev_punc", str(dev_punc_score), epoch)
