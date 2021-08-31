@@ -30,6 +30,7 @@ cookie
 dataset
 logs
 .nfs*
+cache/*
 
 # PyInstaller
 #  Usually these files are written by a python script from a template
