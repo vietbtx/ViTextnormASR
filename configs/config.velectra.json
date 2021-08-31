@@ -1,0 +1,10 @@
+{
+    "tokenizer": {
+        "name": "FPTAI/velectra-base-discriminator-cased",
+        "type": "BertTokenizerFast"
+    },
+    "pretrained_model": {
+        "name": "FPTAI/velectra-base-discriminator-cased",
+        "type": "ElectraModel"
+    }
+}

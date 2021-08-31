@@ -1,0 +1,10 @@
+{
+    "tokenizer": {
+        "name": "bert-base-multilingual-cased",
+        "type": "BertTokenizerFast"
+    },
+    "pretrained_model": {
+        "name": "bert-base-multilingual-cased",
+        "type": "BertModel"
+    }
+}

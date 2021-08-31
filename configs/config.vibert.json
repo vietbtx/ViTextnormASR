@@ -1,0 +1,10 @@
+{
+    "tokenizer": {
+        "name": "FPTAI/vibert-base-cased",
+        "type": "BertTokenizerFast"
+    },
+    "pretrained_model": {
+        "name": "FPTAI/vibert-base-cased",
+        "type": "BertModel"
+    }
+}
