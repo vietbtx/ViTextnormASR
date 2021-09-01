@@ -72,7 +72,6 @@ def train(data_config, model_config, model_mode, n_blocks=0, n_tokens=0):
     optimizer = init_default_optimizer(model, data.learning_rate, 0.001)
     if amp is not None:
         model, optimizer = amp.initialize(model, optimizer, opt_level="O1")
-    n_epochs = data.n_epochs
     total_step = len(data.train_loader)
     global_step = 0
     best_f1_scores = {"norm": 0, "punc": 0}
@@ -83,6 +82,7 @@ def train(data_config, model_config, model_mode, n_blocks=0, n_tokens=0):
     else:
         phases = ["nojoint"]
     for phase in phases:
+        n_epochs = data.n_epochs // len(phases)
         scheduler = linear_schedule(optimizer, num_warmup_steps=total_step//8, num_training_steps=n_epochs*total_step)
         for epoch in range(n_epochs):
             model.train()
