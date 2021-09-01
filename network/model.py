@@ -48,7 +48,8 @@ class BERTModel(nn.Module):
                 next_blocks = torch.cat(next_blocks, 1)
                 prev_blocks = torch.cat(prev_blocks, 1)
             bert_output = torch.cat((prev_blocks, bert_output, next_blocks), 1)
-        return bert_output, next_blocks, prev_blocks
+        lstm_output = self.forward_lstm(bert_output, next_blocks, prev_blocks)
+        return lstm_output
     
     def forward_lstm(self, bert_output, next_blocks, prev_blocks):
         lstm_output, _ = self.lstm(bert_output)
@@ -58,44 +59,48 @@ class BERTModel(nn.Module):
             lstm_output = lstm_output[:,prev_dim:-next_dim,:].contiguous()
         return lstm_output
     
-    def forward_decoders(self, lstm_output, norm_ids=None, punc_ids=None):
+    def forward_decoders(self, lstm_output, norm_ids=None, punc_ids=None, phase_id=-1):
         if self.mode == "nojoint":
             norm_logits = self.norm_decoder(lstm_output)
             punc_logits = self.punc_decoder(lstm_output)
         elif self.mode == "norm_to_punc":
             norm_logits = self.norm_decoder(lstm_output)
-            if norm_ids is None:
-                norm_ids = torch.argmax(norm_logits, -1)
-            norm_onehot = self.make_onehot(norm_ids, self.n_norm_labels)
-            punc_logits = self.punc_decoder(torch.cat((lstm_output, norm_onehot), -1))
+            if phase_id in [-1, 1]:
+                if norm_ids is None:
+                    norm_ids = torch.argmax(norm_logits, -1)
+                norm_onehot = self.make_onehot(norm_ids, self.n_norm_labels)
+                punc_logits = self.punc_decoder(torch.cat((lstm_output, norm_onehot), -1))
+            else:
+                punc_logits = None
         elif self.mode == "punc_to_norm":
             punc_logits = self.punc_decoder(lstm_output)
-            if punc_ids is None:
-                punc_ids = torch.argmax(punc_logits, -1)
-            punc_onehot = self.make_onehot(punc_ids, self.n_punc_labels)
-            norm_logits = self.norm_decoder(torch.cat((lstm_output, punc_onehot), -1))
+            if phase_id in [-1, 1]:
+                if punc_ids is None:
+                    punc_ids = torch.argmax(punc_logits, -1)
+                punc_onehot = self.make_onehot(punc_ids, self.n_punc_labels)
+                norm_logits = self.norm_decoder(torch.cat((lstm_output, punc_onehot), -1))
+            else:
+                norm_logits = None
         return norm_logits, punc_logits
 
-    def forward(self, input_ids, mask_ids, norm_ids=None, punc_ids=None, next_blocks=None, prev_blocks=None):
-        if norm_ids is None or punc_ids is None:
+    def forward(self, input_ids, mask_ids, norm_ids=None, punc_ids=None, next_blocks=None, prev_blocks=None, phase_id=-1):
+        if phase_id >= 1:
             with torch.no_grad():
-                bert_output, next_blocks, prev_blocks = self.forward_bert(input_ids, mask_ids, next_blocks, prev_blocks)
-                lstm_output = self.forward_lstm(bert_output, next_blocks, prev_blocks)
+                bert_output = self.forward_bert(input_ids, mask_ids, next_blocks, prev_blocks)
         else:
-            bert_output, next_blocks, prev_blocks = self.forward_bert(input_ids, mask_ids, next_blocks, prev_blocks)
-            lstm_output = self.forward_lstm(bert_output, next_blocks, prev_blocks)
+            bert_output = self.forward_bert(input_ids, mask_ids, next_blocks, prev_blocks)
         
-        norm_logits, punc_logits = self.forward_decoders(lstm_output, norm_ids, punc_ids)
+        norm_logits, punc_logits = self.forward_decoders(bert_output, norm_ids, punc_ids, phase_id)
 
         if norm_ids is None and punc_ids is None:
             return norm_logits, punc_logits
         else:
-            if norm_ids is not None:
+            if norm_logits is not None:
                 norm_ids = norm_ids.view(-1)
                 norm_loss = self.norm_loss_fct(norm_logits.view(norm_ids.shape[0], -1), norm_ids)
             else:
                 norm_loss = -1
-            if punc_ids is not None:
+            if punc_logits is not None:
                 punc_ids = punc_ids.view(-1)
                 punc_loss = self.punc_loss_fct(punc_logits.view(punc_ids.shape[0], -1), punc_ids)
             else:
