@@ -78,7 +78,7 @@ def train(data_config, model_config, model_mode, n_blocks=0, n_tokens=0):
     best_f1_scores = {"norm": 0, "punc": 0}
     if model_mode == "norm_to_punc":
         phases = ["norm", "punc"]
-    elif model_mode == "norm_to_punc":
+    elif model_mode == "punc_to_norm":
         phases = ["punc", "norm"]
     else:
         phases = ["nojoint"]
