@@ -59,38 +59,41 @@ class BERTModel(nn.Module):
             lstm_output = lstm_output[:,prev_dim:-next_dim,:].contiguous()
         return lstm_output
     
-    def forward_decoders(self, lstm_output, norm_ids=None, punc_ids=None, phase_id=-1):
+    def forward_decoders(self, lstm_output, norm_ids=None, punc_ids=None, phase="nojoint"):
+        norm_logits = None
+        punc_logits = None
+        
         if self.mode == "nojoint":
             norm_logits = self.norm_decoder(lstm_output)
             punc_logits = self.punc_decoder(lstm_output)
         elif self.mode == "norm_to_punc":
             norm_logits = self.norm_decoder(lstm_output)
-            if phase_id in [-1, 1]:
+            if phase in ["nojoint", "punc"]:
                 if norm_ids is None:
                     norm_ids = torch.argmax(norm_logits, -1)
                 norm_onehot = self.make_onehot(norm_ids, self.n_norm_labels)
                 punc_logits = self.punc_decoder(torch.cat((lstm_output, norm_onehot), -1))
-            else:
-                punc_logits = None
         elif self.mode == "punc_to_norm":
             punc_logits = self.punc_decoder(lstm_output)
-            if phase_id in [-1, 1]:
+            if phase in ["nojoint", "norm"]:
                 if punc_ids is None:
+                    punc_logits = self.punc_decoder(lstm_output)
                     punc_ids = torch.argmax(punc_logits, -1)
                 punc_onehot = self.make_onehot(punc_ids, self.n_punc_labels)
                 norm_logits = self.norm_decoder(torch.cat((lstm_output, punc_onehot), -1))
-            else:
-                norm_logits = None
+            
         return norm_logits, punc_logits
 
-    def forward(self, input_ids, mask_ids, norm_ids=None, punc_ids=None, next_blocks=None, prev_blocks=None, phase_id=-1):
-        if phase_id >= 1:
-            with torch.no_grad():
-                bert_output = self.forward_bert(input_ids, mask_ids, next_blocks, prev_blocks)
-        else:
-            bert_output = self.forward_bert(input_ids, mask_ids, next_blocks, prev_blocks)
+    def forward(self, input_ids, mask_ids, norm_ids=None, punc_ids=None, next_blocks=None, prev_blocks=None, phase="nojoint"):
+        is_grad = torch.is_grad_enabled()
+        if self.mode == "norm_to_punc" and phase == "punc":
+            torch.set_grad_enabled(False)
+        if self.mode == "punc_to_norm" and phase == "norm":
+            torch.set_grad_enabled(False)
+        bert_output = self.forward_bert(input_ids, mask_ids, next_blocks, prev_blocks)
+        torch.set_grad_enabled(is_grad)
         
-        norm_logits, punc_logits = self.forward_decoders(bert_output, norm_ids, punc_ids, phase_id)
+        norm_logits, punc_logits = self.forward_decoders(bert_output, norm_ids, punc_ids, phase)
 
         if norm_ids is None and punc_ids is None:
             return norm_logits, punc_logits

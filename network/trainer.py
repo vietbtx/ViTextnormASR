@@ -77,12 +77,12 @@ def train(data_config, model_config, model_mode, n_blocks=0, n_tokens=0):
     global_step = 0
     best_f1_scores = {"norm": 0, "punc": 0}
     if model_mode == "norm_to_punc":
-        phases = ["norm", "punc"]
+        phases = ["nojoint", "norm", "punc"]
     elif model_mode == "punc_to_norm":
-        phases = ["punc", "norm"]
+        phases = ["nojoint", "punc", "norm"]
     else:
         phases = ["nojoint"]
-    for phase_id, phase in enumerate(phases):
+    for phase in phases:
         scheduler = linear_schedule(optimizer, num_warmup_steps=total_step//8, num_training_steps=n_epochs*total_step)
         for epoch in range(n_epochs):
             model.train()
@@ -94,16 +94,16 @@ def train(data_config, model_config, model_mode, n_blocks=0, n_tokens=0):
                     norm_loss = norm_loss.item()
                     punc_loss = punc_loss.item()
                 elif phase == "norm":
-                    norm_loss, punc_loss = model(*batch, phase_id=phase_id)
+                    norm_loss, punc_loss = model(*batch, phase=phase)
                     loss = norm_loss
                     norm_loss = norm_loss.item()
                 elif phase == "punc":
-                    norm_loss, punc_loss = model(*batch, phase_id=phase_id)
+                    norm_loss, punc_loss = model(*batch, phase=phase)
                     loss = punc_loss
                     punc_loss = punc_loss.item()
                 
                 end = "\n" if step % (total_step//8) == 0 else "\r"
-                phase_name = f"{phase_id}-{phase}/{model_mode}/{n_blocks}-{n_tokens}"
+                phase_name = f"{phase}/{model_mode}/{n_blocks}-{n_tokens}"
                 print(f"Phase: {phase_name} - epoch: {epoch} - step: {step+1}/{total_step} - loss: {norm_loss:.5f}/{punc_loss:.5f}", end=end)
                 if norm_loss > 0:
                     writer.add_scalar("loss/norm", norm_loss, global_step)

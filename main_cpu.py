@@ -6,7 +6,7 @@ if __name__=="__main__":
     vibert = "configs/config.vibert.json"
     velectra = "configs/config.velectra.json"
     
-    train(config, velectra, "nojoint")
+    # train(config, velectra, "nojoint")
     train(config, velectra, "norm_to_punc")
     train(config, velectra, "punc_to_norm")
 
