@@ -82,7 +82,7 @@ def train(data_config, model_config, model_mode, n_blocks=0, n_tokens=0):
     else:
         phases = ["nojoint"]
     for phase in phases:
-        n_epochs = data.n_epochs // len(phases)
+        n_epochs = data.n_epochs
         scheduler = linear_schedule(optimizer, num_warmup_steps=total_step//8, num_training_steps=n_epochs*total_step)
         for epoch in range(n_epochs):
             model.train()

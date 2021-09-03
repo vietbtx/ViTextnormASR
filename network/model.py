@@ -32,7 +32,6 @@ class BERTModel(nn.Module):
         
         self.norm_loss_fct = nn.CrossEntropyLoss()
         self.punc_loss_fct = nn.CrossEntropyLoss()
-
     
     @classmethod
     def from_config(cls, model_config, norm_labels, punc_labels, lstm_dim, model_mode):
