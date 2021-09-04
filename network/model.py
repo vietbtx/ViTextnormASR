@@ -9,8 +9,10 @@ class BERTModel(nn.Module):
     def __init__(self, model_config, norm_labels, punc_labels, hidden_dim, model_mode):
         super().__init__()
         self.bert = get_model(model_config)
+        bert_dim = self.bert.config.hidden_size
         # self.lstm = nn.LSTM(self.bert.config.hidden_size, hidden_dim, bidirectional=True)
-        self.attn = AttentionLayer(self.bert.config.hidden_size, hidden_dim)
+        self.attn = AttentionLayer(bert_dim, hidden_dim)
+        hidden_dim = bert_dim
         self.n_norm_labels = len(norm_labels)
         self.n_punc_labels = len(punc_labels)
         self.mode = model_mode
@@ -56,8 +58,7 @@ class BERTModel(nn.Module):
                 next_blocks = torch.cat(next_blocks, 1)
                 prev_blocks = torch.cat(prev_blocks, 1)
             bert_output = torch.cat((prev_blocks, bert_output, next_blocks), 1)
-        hidden_output = self.forward_hidden_layers(bert_output, next_blocks, prev_blocks)
-        return hidden_output
+        return bert_output
     
     def forward_hidden_layers(self, bert_output, next_blocks, prev_blocks):
         hidden_output, _ = self.attn(bert_output)
@@ -105,8 +106,9 @@ class BERTModel(nn.Module):
         if self.mode == "punc_to_norm" and phase == "norm":
             torch.set_grad_enabled(False)
         bert_output = self.forward_bert(input_ids, mask_ids, next_blocks, prev_blocks)
+        hidden_output = self.forward_hidden_layers(bert_output, next_blocks, prev_blocks)
         torch.set_grad_enabled(is_grad)
-        norm_logits, punc_logits = self.forward_decoders(bert_output, norm_ids, punc_ids, phase)
+        norm_logits, punc_logits = self.forward_decoders(hidden_output, norm_ids, punc_ids, phase)
         if norm_ids is None and punc_ids is None:
             return norm_logits, punc_logits
         else:
