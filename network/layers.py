@@ -2,7 +2,11 @@ import torch
 import torch.nn as nn
 
 import numpy as np
-from utils.utils import init_xavier_normal
+
+def init_xavier_normal(tensor):
+    param = nn.Parameter(tensor)
+    nn.init.xavier_normal_(param)
+    return param
 
 class BiLSTMLayer(nn.Module):
     def __init__(self, input_dim, hidden_dim=64, rnn_layers=1, dropout=0.5):
