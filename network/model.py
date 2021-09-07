@@ -52,11 +52,10 @@ class BERTModel(nn.Module):
     def forward_encoders(self, input_ids, mask_ids, next_blocks=None, prev_blocks=None):
         bert_output = self.bert(input_ids, mask_ids)[0]
         if next_blocks is not None and prev_blocks is not None:
-            with torch.no_grad():
-                next_blocks = [self.bert(block)[0] for block in next_blocks]
-                prev_blocks = [self.bert(block)[0] for block in prev_blocks]
-                next_blocks = torch.cat(next_blocks, 1)
-                prev_blocks = torch.cat(prev_blocks, 1)
+            next_blocks = [self.bert(block)[0] for block in next_blocks]
+            prev_blocks = [self.bert(block)[0] for block in prev_blocks]
+            next_blocks = torch.cat(next_blocks, 1)
+            prev_blocks = torch.cat(prev_blocks, 1)
             bert_output = torch.cat((prev_blocks, bert_output, next_blocks), 1)
         return bert_output, next_blocks, prev_blocks
     
