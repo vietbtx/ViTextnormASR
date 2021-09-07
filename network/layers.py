@@ -9,6 +9,7 @@ def init_xavier_normal(tensor):
     return param
 
 class BiLSTMLayer(nn.Module):
+
     def __init__(self, input_dim, hidden_dim=64, rnn_layers=1, dropout=0.5):
         super(BiLSTMLayer, self).__init__()
         self.lstm = nn.LSTM(input_dim, hidden_dim//2, rnn_layers, dropout=dropout, bidirectional=True, batch_first=True)
@@ -25,6 +26,7 @@ class BiLSTMLayer(nn.Module):
         return padded_outputs[reversed_idx], hidden[:, reversed_idx]
 
 class BiGRULayer(nn.Module):
+
     def __init__(self, input_dim, hidden_dim=512, rnn_layers=1, dropout=0.5):
         super(BiGRULayer, self).__init__()
         self.gru = nn.GRU(input_dim, hidden_dim//2, rnn_layers, dropout=dropout, bidirectional=True, batch_first=True)
@@ -66,3 +68,19 @@ class AttentionLayer(nn.Module):
         outputs = self.dropout(outputs)
         return self.norm(input_ + outputs), attn
 
+class BiaffineAttention(nn.Module):
+
+    def __init__(self, in_features, out_features):
+        super(BiaffineAttention, self).__init__()
+        self.in_features = in_features
+        self.out_features = out_features
+        self.bilinear = torch.nn.Bilinear(in_features, in_features, out_features, bias=False)
+        self.linear = torch.nn.Linear(2*in_features, out_features, bias=True)
+        self.reset_parameters()
+
+    def forward(self, x1, x2):
+        return self.bilinear(x1, x2) + self.linear(torch.cat((x1, x2), dim=-1))
+
+    def reset_parameters(self):
+        self.bilinear.reset_parameters()
+        self.linear.reset_parameters()
