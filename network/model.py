@@ -6,21 +6,21 @@ from .layers import AttentionLayer, BiaffineAttention
 
 class BERTModel(nn.Module):
 
-    def __init__(self, model_config, norm_labels, punc_labels, hidden_dim, model_mode):
+    def __init__(self, model_config, norm_labels, punc_labels, hidden_dim, model_mode, use_biaffine=True):
         super().__init__()
         self.bert = get_model(model_config)
         self.attn = AttentionLayer(self.bert.config.hidden_size, hidden_dim)
         mlp_dim = self.attn.output_dim // 2
         self.n_norm_labels = len(norm_labels)
         self.n_punc_labels = len(punc_labels)
-        self.mode = model_mode
         
-        self.using_biaffine = True
+        self.mode = model_mode
+        self.use_biaffine = use_biaffine
 
         self.norm_mlp = nn.Linear(self.attn.output_dim, mlp_dim)
         self.punc_mlp = nn.Linear(self.attn.output_dim, mlp_dim)
 
-        if self.using_biaffine:
+        if self.use_biaffine:
             self.norm_decoder = BiaffineAttention(mlp_dim, self.n_norm_labels)
             self.punc_decoder = BiaffineAttention(mlp_dim, self.n_punc_labels)
         else:
@@ -31,9 +31,9 @@ class BERTModel(nn.Module):
         self.punc_criterion = nn.CrossEntropyLoss()
     
     @classmethod
-    def from_config(cls, model_config, norm_labels, punc_labels, hidden_dim, model_mode):
+    def from_config(cls, model_config, norm_labels, punc_labels, hidden_dim, model_mode, use_biaffine=True):
         model_config = read_json(model_config)["pretrained_model"]
-        return cls(model_config, norm_labels, punc_labels, hidden_dim, model_mode)
+        return cls(model_config, norm_labels, punc_labels, hidden_dim, model_mode, use_biaffine)
 
     def forward_encoders(self, input_ids, mask_ids, next_blocks=None, prev_blocks=None):
         bert_output = self.bert(input_ids, mask_ids)[0]
@@ -96,7 +96,7 @@ class BERTModel(nn.Module):
         norm_mlp_output = torch.tanh(self.norm_mlp(norm_hidden_output))
         punc_mlp_output = torch.tanh(self.punc_mlp(punc_hidden_output))
 
-        if self.using_biaffine:
+        if self.use_biaffine:
             norm_logits = self.norm_decoder(norm_mlp_output, punc_mlp_output)
             punc_logits = self.punc_decoder(punc_mlp_output, norm_mlp_output)
         else:
