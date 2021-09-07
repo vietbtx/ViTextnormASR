@@ -58,7 +58,7 @@ class BERTModel(nn.Module):
                 next_blocks = torch.cat(next_blocks, 1)
                 prev_blocks = torch.cat(prev_blocks, 1)
             bert_output = torch.cat((prev_blocks, bert_output, next_blocks), 1)
-        return bert_output
+        return bert_output, next_blocks, prev_blocks
     
     def forward_hidden_layers(self, bert_output, next_blocks, prev_blocks):
         hidden_output, _ = self.attn(bert_output)
@@ -105,7 +105,7 @@ class BERTModel(nn.Module):
             torch.set_grad_enabled(False)
         if self.mode == "punc_to_norm" and phase == "norm":
             torch.set_grad_enabled(False)
-        encoder_output = self.forward_encoders(input_ids, mask_ids, next_blocks, prev_blocks)
+        encoder_output, next_blocks, prev_blocks = self.forward_encoders(input_ids, mask_ids, next_blocks, prev_blocks)
         hidden_output = self.forward_hidden_layers(encoder_output, next_blocks, prev_blocks)
         torch.set_grad_enabled(is_grad)
         norm_logits, punc_logits = self.forward_decoders(hidden_output, norm_ids, punc_ids, phase)
