@@ -16,7 +16,7 @@
     "hidden_dim": 256,
     "learning_rate": 2e-5,
     "n_epochs": 5,
-    "batch_size": 64,
+    "batch_size": 8,
     "device": "cpu"
   }
 }
