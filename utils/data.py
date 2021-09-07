@@ -146,7 +146,7 @@ class Data:
         device = data_config["hyperparams"]["device"]
         self.n_epochs = data_config["hyperparams"]["n_epochs"]
         self.learning_rate = data_config["hyperparams"]["learning_rate"]
-        self.lstm_dim = data_config["hyperparams"]["lstm_dim"]
+        self.hidden_dim = data_config["hyperparams"]["hidden_dim"]
         self.device = device
 
         self.train_loader = TextDataLoader(train_data, pad_id, n_blocks, n_tokens, True, batch_size, device)

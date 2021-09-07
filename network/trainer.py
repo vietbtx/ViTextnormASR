@@ -67,7 +67,7 @@ def evaluate(model, data_loader, norm_dict, punc_dict):
 def train(data_config, model_config, model_mode, n_blocks=0, n_tokens=0):
     data = Data.from_config(data_config, model_config, n_blocks, n_tokens)
     writer = SummaryWriter(f"{data.tensorboard_dir}/{model_mode}/{n_blocks}-{n_tokens}")
-    model = BERTModel.from_config(model_config, data.norm_labels, data.punc_labels, data.lstm_dim, model_mode)
+    model = BERTModel.from_config(model_config, data.norm_labels, data.punc_labels, data.hidden_dim, model_mode)
     model.to(data.device)
     optimizer = init_default_optimizer(model, data.learning_rate, 0.001)
     if amp is not None:
