@@ -1,6 +1,5 @@
 from network.trainer import train
 
-
 if __name__=="__main__":
     config = "configs/config.norm.json"
     mbert = "configs/config.mbert.json"
