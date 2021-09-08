@@ -3,6 +3,9 @@ from tools.utils import write_csv
 from tools.numb2text import Numb2Text
 from p_tqdm import p_umap
 import random
+from sklearn.model_selection import KFold
+import os
+
 
 def is_valid_paragraph(text):
     if len(text) < 10:
@@ -66,34 +69,41 @@ if __name__=="__main__":
         data.update(result)
     all_urls = list(data.keys())
     print(f"Scanned {len(all_urls)} articles")
-    all_urls = all_urls[:4000]
+    all_urls = all_urls[:6000]
     random.shuffle(all_urls)
-    train_pos = int(len(all_urls)*0.7)
-    dev_pos = int(len(all_urls)*0.8)
-    train_urls = all_urls[:train_pos]
-    dev_urls = all_urls[train_pos:dev_pos]
-    test_urls = all_urls[dev_pos:]
-
-    print(f"Selected {len(all_urls)} articles")
-    print(f"    - Train:\t{len(train_urls)} articles")
-    print(f"    - Dev:\t{len(dev_urls)} articles")
-    print(f"    - Test:\t{len(test_urls)} articles")
-
-    write_csv("dataset/train_metadata.csv", {url: data[url] for url in train_urls})
-    write_csv("dataset/dev_metadata.csv", {url: data[url] for url in dev_urls})
-    write_csv("dataset/test_metadata.csv", {url: data[url] for url in test_urls})
 
     print("Reading content ...")
-    train_data = []
-    dev_data = []
-    test_data = []
+    content = {}
     for url, result in p_umap(read_content, all_urls):
-        if url in train_urls:
-            train_data += result
-        elif url in dev_urls:
-            dev_data += result
-        elif url in test_urls:
-            test_data += result
-    write_data("dataset/train.txt", train_data)
-    write_data("dataset/dev.txt", dev_data)
-    write_data("dataset/test.txt", test_data)
+        if len(result) > 0:
+            content[url] = result
+
+    all_urls = list(content.keys())
+
+    print(f"Selected {len(all_urls)} articles")
+
+    kf = KFold(n_splits=5, shuffle=True)
+    kf.get_n_splits(all_urls)
+
+    for fold_id, (train_index, test_index) in enumerate(kf.split(all_urls)):
+        print("Fold:", fold_id)
+        os.makedirs("dataset", exist_ok=True)
+        os.makedirs(f"dataset/fold_{fold_id}", exist_ok=True)
+        train_urls = [all_urls[x] for x in train_index]
+        test_urls = [all_urls[x] for x in test_index]
+
+        print(f"    - Train:\t{len(train_urls)} articles")
+        print(f"    - Test:\t{len(test_urls)} articles")
+
+        write_csv(f"dataset/fold_{fold_id}/train_metadata.csv", {url: data[url] for url in train_urls})
+        write_csv(f"dataset/fold_{fold_id}/test_metadata.csv", {url: data[url] for url in test_urls})
+        
+        train_data = []
+        test_data = []
+        for url, result in content.items():
+            if url in train_urls:
+                train_data += result
+            elif url in test_urls:
+                test_data += result
+        write_data(f"dataset/fold_{fold_id}/train.txt", train_data)
+        write_data(f"dataset/fold_{fold_id}/test.txt", test_data)

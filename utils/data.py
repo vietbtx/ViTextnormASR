@@ -117,7 +117,7 @@ class TextDataLoader(DataLoader):
         punc_ids = torch.LongTensor(all_punc_ids).to(self.device)
         next_blocks, prev_blocks = self.process_extend_blocks(extend_blocks, pad_id)
         return input_ids, mask_ids, norm_ids, punc_ids, next_blocks, prev_blocks
-            
+
 
 class Data:
 
@@ -132,13 +132,11 @@ class Data:
         self.cookie_folder = logging["cookie"]
         self.tensorboard_dir = logging["tensorboard"] + "/" + data_name + "/" + model_name
         
-        
         self.norm_labels = data_config["dataset"]["norm_labels"]
         self.punc_labels = data_config["dataset"]["punc_labels"]
 
         self.tokenizer = None
         train_data = self.read_file(data_config["dataset"]["train"])
-        dev_data = self.read_file(data_config["dataset"]["dev"])
         test_data = self.read_file(data_config["dataset"]["test"])
 
         pad_id = self.read_pad_token_id()
@@ -150,7 +148,6 @@ class Data:
         self.device = device
 
         self.train_loader = TextDataLoader(train_data, pad_id, n_blocks, n_tokens, True, batch_size, device)
-        self.dev_loader = TextDataLoader(dev_data, pad_id, n_blocks, n_tokens, False, batch_size, device)
         self.test_loader = TextDataLoader(test_data, pad_id, n_blocks, n_tokens, False, batch_size, device)
     
     def read_pad_token_id(self):

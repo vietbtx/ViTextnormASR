@@ -1,8 +1,8 @@
 {
-  "name": "textnorm",
+  "name": "textnorm_0",
   "dataset": {
-    "train": "./dataset/fold_1/train.txt",
-    "test": "./dataset/fold_1/test.txt",
+    "train": "./dataset/fold_0/train.txt",
+    "test": "./dataset/fold_0/test.txt",
     "norm_labels": ["B-CAP", "B-ALLCAP", "B-NUMB", "I-ALLCAP", "I-NUMB", "O"],
     "punc_labels": ["PERIOD", "COMMA", "QMARK", "EMARK", "COLON", "SCOLON", "DASH", "O"]
   },
@@ -12,10 +12,10 @@
     "cookie": "cookie"
   },
   "hyperparams": {
-    "hidden_dim": 256,
+    "hidden_dim": 512,
     "learning_rate": 2e-5,
-    "n_epochs": 5,
-    "batch_size": 8,
-    "device": "cpu"
+    "n_epochs": 15,
+    "batch_size": 16,
+    "device": "cuda"
   }
 }
