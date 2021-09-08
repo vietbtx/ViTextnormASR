@@ -15,7 +15,7 @@
   "hyperparams": {
     "hidden_dim": 512,
     "learning_rate": 2e-5,
-    "n_epochs": 15,
+    "n_epochs": 5,
     "batch_size": 16,
     "device": "cuda"
   }
