@@ -70,7 +70,7 @@ def train(data_config, model_config, model_mode, n_blocks=0, n_tokens=0, biaffin
     model = BERTModel.from_config(model_config, data.norm_labels, data.punc_labels, data.hidden_dim, model_mode, biaffine)
     model.to(data.device)
     optimizer = init_default_optimizer(model, data.learning_rate, 0.001)
-    if amp is not None:
+    if amp is not None and data.device != "cpu":
         model, optimizer = amp.initialize(model, optimizer, opt_level="O1")
     total_step = len(data.train_loader)
     global_step = 0
