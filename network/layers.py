@@ -43,6 +43,7 @@ class BiGRULayer(nn.Module):
         return padded_outputs[reversed_idx], hidden[:, reversed_idx]
 
 class AttentionLayer(nn.Module):
+    
     def __init__(self, input_dim, hidden_dim=64, n_heads=3, dropout=0.5):
         super(AttentionLayer, self).__init__()
         self.input_dim = input_dim
