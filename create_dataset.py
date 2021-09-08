@@ -66,7 +66,7 @@ if __name__=="__main__":
         data.update(result)
     all_urls = list(data.keys())
     print(f"Scanned {len(all_urls)} articles")
-    all_urls = random.choices(all_urls, k=5000)
+    all_urls = all_urls[:4000]
     random.shuffle(all_urls)
     train_pos = int(len(all_urls)*0.7)
     dev_pos = int(len(all_urls)*0.8)

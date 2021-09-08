@@ -13,7 +13,7 @@ class BERTModel(nn.Module):
         mlp_dim = self.attn.output_dim // 2
         self.n_norm_labels = len(norm_labels)
         self.n_punc_labels = len(punc_labels)
-        
+
         self.mode = model_mode
         self.use_biaffine = use_biaffine
 
@@ -73,7 +73,7 @@ class BERTModel(nn.Module):
     def forward(self, input_ids, mask_ids, norm_ids=None, punc_ids=None, next_blocks=None, prev_blocks=None):
         if self.mode == "nojoint":
             norm_bert_output = self.forward_bert(input_ids, mask_ids)[0]
-            punc_bert_output = self.forward_bert(input_ids, mask_ids)[0]
+            punc_bert_output = norm_bert_output
         elif self.mode == "norm_to_punc":
             norm_bert_output = self.forward_bert(input_ids, mask_ids)[0]
             punc_bert_output = self.forward_bert(input_ids, mask_ids, norm_bert_output)[0]

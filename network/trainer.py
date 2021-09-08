@@ -64,10 +64,10 @@ def evaluate(model, data_loader, norm_dict, punc_dict):
     return norm_score, punc_score
 
 
-def train(data_config, model_config, model_mode, n_blocks=0, n_tokens=0):
+def train(data_config, model_config, model_mode, n_blocks=0, n_tokens=0, biaffine=True):
     data = Data.from_config(data_config, model_config, n_blocks, n_tokens)
-    writer = SummaryWriter(f"{data.tensorboard_dir}/{model_mode}/{n_blocks}-{n_tokens}")
-    model = BERTModel.from_config(model_config, data.norm_labels, data.punc_labels, data.hidden_dim, model_mode)
+    writer = SummaryWriter(f"{data.tensorboard_dir}/{model_mode}/{n_blocks}-{n_tokens}-{biaffine}")
+    model = BERTModel.from_config(model_config, data.norm_labels, data.punc_labels, data.hidden_dim, model_mode, biaffine)
     model.to(data.device)
     optimizer = init_default_optimizer(model, data.learning_rate, 0.001)
     if amp is not None:
@@ -87,7 +87,7 @@ def train(data_config, model_config, model_mode, n_blocks=0, n_tokens=0):
             punc_loss = punc_loss.item()
             
             end = "\n" if step % (total_step//4) == 0 else "\r"
-            phase_name = f"{model_mode}/{n_blocks}-{n_tokens}"
+            phase_name = f"{model_mode}/{n_blocks}-{n_tokens}-{biaffine}"
             print(f"Phase: {phase_name} - epoch: {epoch} - step: {step+1}/{total_step} - loss: {norm_loss:.5f}/{punc_loss:.5f}", end=end)
             writer.add_scalar("loss/norm", norm_loss, global_step)
             writer.add_scalar("loss/punc", punc_loss, global_step)
