@@ -16,16 +16,25 @@ class BERTModel(nn.Module):
 
         self.mode = model_mode
         self.use_biaffine = use_biaffine
+        
+        if self.mode == "nojoint":
+            self.norm_mlp = nn.Linear(self.attn.output_dim, mlp_dim)
+            self.punc_mlp = nn.Linear(self.attn.output_dim, mlp_dim)
+        elif self.mode == "norm_to_punc":
+            self.norm_mlp = nn.Linear(self.attn.output_dim, mlp_dim)
+            self.punc_mlp = nn.Linear(self.attn.output_dim+mlp_dim, mlp_dim)
+        elif self.mode == "punc_to_norm":
+            self.norm_mlp = nn.Linear(self.attn.output_dim+mlp_dim, mlp_dim)
+            self.punc_mlp = nn.Linear(self.attn.output_dim, mlp_dim)
 
-        self.norm_mlp = nn.Linear(self.attn.output_dim, mlp_dim)
-        self.punc_mlp = nn.Linear(self.attn.output_dim, mlp_dim)
+        self.norm_decoder = nn.Linear(mlp_dim, self.n_norm_labels)
+        self.punc_decoder = nn.Linear(mlp_dim, self.n_punc_labels)
 
         if self.use_biaffine:
-            self.norm_decoder = BiaffineAttention(mlp_dim, self.n_norm_labels)
-            self.punc_decoder = BiaffineAttention(mlp_dim, self.n_punc_labels)
-        else:
-            self.norm_decoder = nn.Linear(mlp_dim, self.n_norm_labels)
-            self.punc_decoder = nn.Linear(mlp_dim, self.n_punc_labels)
+            if self.mode == "punc_to_norm":
+                self.norm_decoder = BiaffineAttention(mlp_dim, self.n_norm_labels)
+            if self.mode == "norm_to_punc":
+                self.punc_decoder = BiaffineAttention(mlp_dim, self.n_punc_labels)
         
         self.norm_criterion = nn.CrossEntropyLoss()
         self.punc_criterion = nn.CrossEntropyLoss()
@@ -47,6 +56,8 @@ class BERTModel(nn.Module):
         return bert_output, next_blocks, prev_blocks
     
     def forward_hidden_layers(self, bert_output, next_blocks, prev_blocks):
+        if next_blocks is not None and prev_blocks is not None:
+            bert_output = torch.cat((prev_blocks, bert_output, next_blocks), 1)
         hidden_output, _ = self.attn(bert_output)
         if next_blocks is not None and prev_blocks is not None:
             next_dim = next_blocks.shape[1]
@@ -55,52 +66,47 @@ class BERTModel(nn.Module):
         hidden_output = torch.tanh(hidden_output)
         return hidden_output
     
-    def set_bert_mode(self, mode):
-        if mode == "encoder":
-            self.bert.config.is_decoder = False
-            self.bert.config.add_cross_attention = False
-        elif mode == "decoder":
-            self.bert.config.is_decoder = True
-            self.bert.config.add_cross_attention = True
-    
-    def forward_bert(self, input_ids, mask_ids, encoder_hidden_states=None):
-        self.set_bert_mode("encoder" if encoder_hidden_states is None else "decoder")
-        bert_emb = self.bert.embeddings(input_ids)
-        extended_attention_mask = self.bert.get_extended_attention_mask(mask_ids, input_ids.size(), input_ids.device)
-        hidden_states = self.bert.encoder(bert_emb, attention_mask=extended_attention_mask, encoder_hidden_states=encoder_hidden_states)
-        return hidden_states
-
-    def forward(self, input_ids, mask_ids, norm_ids=None, punc_ids=None, next_blocks=None, prev_blocks=None):
-        if self.mode == "nojoint":
-            norm_bert_output = self.forward_bert(input_ids, mask_ids)[0]
-            punc_bert_output = norm_bert_output
-        elif self.mode == "norm_to_punc":
-            norm_bert_output = self.forward_bert(input_ids, mask_ids)[0]
-            punc_bert_output = self.forward_bert(input_ids, mask_ids, norm_bert_output)[0]
-        elif self.mode == "punc_to_norm":
-            punc_bert_output = self.forward_bert(input_ids, mask_ids)[0]
-            norm_bert_output = self.forward_bert(input_ids, mask_ids, punc_bert_output)[0]
-        
+    def forward_blocks(self, next_blocks=None, prev_blocks=None):
         if next_blocks is not None and prev_blocks is not None:
             with torch.no_grad():
-                next_blocks = [self.bert(block)[0] for block in next_blocks]
-                prev_blocks = [self.bert(block)[0] for block in prev_blocks]
+                next_blocks = [self.forward_bert(block) for block in next_blocks]
+                prev_blocks = [self.forward_bert(block) for block in prev_blocks]
                 next_blocks = torch.cat(next_blocks, 1)
                 prev_blocks = torch.cat(prev_blocks, 1)
-            norm_bert_output = torch.cat((prev_blocks, norm_bert_output, next_blocks), 1)
-            punc_bert_output = torch.cat((prev_blocks, punc_bert_output, next_blocks), 1)
-        
-        norm_hidden_output = self.forward_hidden_layers(norm_bert_output, next_blocks, prev_blocks)
-        punc_hidden_output = self.forward_hidden_layers(punc_bert_output, next_blocks, prev_blocks)
+        return next_blocks, prev_blocks
 
-        norm_mlp_output = torch.tanh(self.norm_mlp(norm_hidden_output))
-        punc_mlp_output = torch.tanh(self.punc_mlp(punc_hidden_output))
+    def forward_bert(self, input_ids, mask_ids=None):
+        bert_output = self.bert(input_ids, mask_ids)[0]
+        return bert_output
 
-        if self.use_biaffine:
-            norm_logits = self.norm_decoder(norm_mlp_output, punc_mlp_output)
+    def forward(self, input_ids, mask_ids, norm_ids=None, punc_ids=None, next_blocks=None, prev_blocks=None):
+        next_blocks, prev_blocks = self.forward_blocks(next_blocks, prev_blocks)
+        bert_output = self.forward_bert(input_ids, mask_ids)
+        hidden_output = self.forward_hidden_layers(bert_output, next_blocks, prev_blocks)
+
+        if self.mode == "nojoint":
+            norm_mlp_output = self.norm_mlp(hidden_output)
+            punc_mlp_output = self.punc_mlp(hidden_output)
+        elif self.mode == "norm_to_punc":
+            norm_mlp_output = self.norm_mlp(hidden_output)
+            punc_mlp_output = self.punc_mlp(torch.cat((hidden_output, norm_mlp_output), -1))
+        elif self.mode == "punc_to_norm":
+            punc_mlp_output = self.punc_mlp(hidden_output)
+            norm_mlp_output = self.norm_mlp(torch.cat((hidden_output, punc_mlp_output), -1))
+
+        norm_mlp_output = torch.tanh(norm_mlp_output)
+        punc_mlp_output = torch.tanh(punc_mlp_output)
+
+        norm_logits = None
+        punc_logits = None
+        if self.use_biaffine and self.mode == "norm_to_punc":
             punc_logits = self.punc_decoder(punc_mlp_output, norm_mlp_output)
-        else:
+        if self.use_biaffine and self.mode == "punc_to_norm":
+            norm_logits = self.norm_decoder(norm_mlp_output, punc_mlp_output)
+
+        if norm_logits is None:
             norm_logits = self.norm_decoder(norm_mlp_output)
+        if punc_logits is None:
             punc_logits = self.punc_decoder(punc_mlp_output)
 
         if norm_ids is None and punc_ids is None:

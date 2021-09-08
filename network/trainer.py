@@ -92,7 +92,7 @@ def train(data_config, model_config, model_mode, n_blocks=0, n_tokens=0, biaffin
             writer.add_scalar("loss/norm", norm_loss, global_step)
             writer.add_scalar("loss/punc", punc_loss, global_step)
             writer.add_scalar('learning_rate', scheduler.optimizer.param_groups[0]["lr"], global_step)
-            if amp is not None:
+            if amp is not None and data.device != "cpu":
                 with amp.scale_loss(loss, optimizer) as scaled_loss:
                     scaled_loss.backward()
             else:
