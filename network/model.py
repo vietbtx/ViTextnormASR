@@ -77,7 +77,8 @@ class BERTModel(nn.Module):
         return next_blocks, prev_blocks
 
     def forward_bert(self, input_ids, mask_ids=None):
-        bert_output = self.bert(input_ids, mask_ids)[0]
+        with torch.no_grad():
+            bert_output = self.bert(input_ids, mask_ids)[0]
         return bert_output
 
     def forward(self, input_ids, mask_ids, norm_ids=None, punc_ids=None, next_blocks=None, prev_blocks=None):
