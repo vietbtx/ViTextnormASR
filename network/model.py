@@ -9,8 +9,13 @@ class BERTModel(nn.Module):
     def __init__(self, model_config, norm_labels, punc_labels, hidden_dim, model_mode, use_biaffine=True):
         super().__init__()
         self.bert = get_model(model_config)
-        self.attn = AttentionLayer(self.bert.config.hidden_size, hidden_dim)
-        mlp_dim = self.attn.output_dim // 2
+        if self.mode != "nojoint":
+            self.attn = AttentionLayer(self.bert.config.hidden_size, hidden_dim)
+            hidden_dim = self.attn.output_dim
+        else:
+            self.attn = None
+            hidden_dim = self.bert.config.hidden_size
+        mlp_dim = hidden_dim // 2
         self.n_norm_labels = len(norm_labels)
         self.n_punc_labels = len(punc_labels)
 
@@ -18,14 +23,14 @@ class BERTModel(nn.Module):
         self.use_biaffine = use_biaffine
         
         if self.mode == "nojoint":
-            self.norm_mlp = nn.Linear(self.attn.output_dim, mlp_dim)
-            self.punc_mlp = nn.Linear(self.attn.output_dim, mlp_dim)
+            self.norm_mlp = nn.Linear(hidden_dim, mlp_dim)
+            self.punc_mlp = nn.Linear(hidden_dim, mlp_dim)
         elif self.mode == "norm_to_punc":
-            self.norm_mlp = nn.Linear(self.attn.output_dim, mlp_dim)
-            self.punc_mlp = nn.Linear(self.attn.output_dim+mlp_dim, mlp_dim)
+            self.norm_mlp = nn.Linear(hidden_dim, mlp_dim)
+            self.punc_mlp = nn.Linear(hidden_dim+mlp_dim, mlp_dim)
         elif self.mode == "punc_to_norm":
-            self.norm_mlp = nn.Linear(self.attn.output_dim+mlp_dim, mlp_dim)
-            self.punc_mlp = nn.Linear(self.attn.output_dim, mlp_dim)
+            self.norm_mlp = nn.Linear(hidden_dim+mlp_dim, mlp_dim)
+            self.punc_mlp = nn.Linear(hidden_dim, mlp_dim)
 
         self.norm_decoder = nn.Linear(mlp_dim, self.n_norm_labels)
         self.punc_decoder = nn.Linear(mlp_dim, self.n_punc_labels)
@@ -56,6 +61,8 @@ class BERTModel(nn.Module):
         return bert_output, next_blocks, prev_blocks
     
     def forward_hidden_layers(self, bert_output, next_blocks, prev_blocks):
+        if self.attn is None:
+            return bert_output
         if next_blocks is not None and prev_blocks is not None:
             bert_output = torch.cat((prev_blocks, bert_output, next_blocks), 1)
         hidden_output, _ = self.attn(bert_output)
