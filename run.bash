@@ -2,7 +2,7 @@
 #PBS -N ViTextnorm
 #PBS -q gpuvolta
 #PBS -P aw84
-#PBS -l walltime=4:00:00
+#PBS -l walltime=24:00:00
 #PBS -l wd
 #PBS -l ncpus=12
 #PBS -l ngpus=1
