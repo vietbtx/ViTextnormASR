@@ -15,7 +15,7 @@
     "hidden_dim": 512,
     "learning_rate": 2e-5,
     "n_epochs": 15,
-    "batch_size": 16,
+    "batch_size": 64,
     "device": "cuda"
   }
 }
