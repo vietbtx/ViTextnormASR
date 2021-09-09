@@ -1,8 +1,7 @@
 {
-  "name": "textnorm_4",
+  "name": "textnorm",
   "dataset": {
-    "train": "./dataset/fold_4/train.txt",
-    "test": "./dataset/fold_4/test.txt",
+    "folder": "./dataset",
     "norm_labels": ["B-CAP", "B-ALLCAP", "B-NUMB", "I-ALLCAP", "I-NUMB", "O"],
     "punc_labels": ["PERIOD", "COMMA", "QMARK", "EMARK", "COLON", "SCOLON", "DASH", "O"]
   },
@@ -14,7 +13,7 @@
   "hyperparams": {
     "hidden_dim": 512,
     "learning_rate": 2e-5,
-    "n_epochs": 15,
+    "n_epochs": 25,
     "batch_size": 32,
     "device": "cuda"
   }

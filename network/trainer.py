@@ -64,8 +64,8 @@ def evaluate(model, data_loader, norm_dict, punc_dict):
     return norm_score, punc_score
 
 
-def train(data_config, model_config, model_mode, n_blocks=0, n_tokens=0, biaffine=True):
-    data = Data.from_config(data_config, model_config, n_blocks, n_tokens)
+def train(data_config, model_config, model_mode, fold_id=0, n_blocks=0, n_tokens=0, biaffine=True):
+    data = Data.from_config(data_config, model_config, fold_id, n_blocks, n_tokens)
     writer = SummaryWriter(f"{data.tensorboard_dir}/{model_mode}/{n_blocks}-{n_tokens}-{biaffine}")
     model = BERTModel.from_config(model_config, data.norm_labels, data.punc_labels, data.hidden_dim, model_mode, biaffine)
     model.to(data.device)

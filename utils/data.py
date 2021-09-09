@@ -45,9 +45,9 @@ class TextDataLoader(DataLoader):
         prev_blocks = self.data_set[block_id-self.n_extend_blocks:block_id]
         next_blocks = [self.read_ids(block) for block in next_blocks]
         prev_blocks = [self.read_ids(block) for block in prev_blocks]
-        if len(next_blocks) > 0:
+        if len(next_blocks) > 0 and self.n_extend_tokens > 0:
             next_blocks[0] = self.read_ids(self.data_set[block_id+1][-self.n_extend_tokens:])
-        if len(prev_blocks) > 0:
+        if len(prev_blocks) > 0 and self.n_extend_tokens > 0:
             prev_blocks[-1] = self.read_ids(self.data_set[block_id-1][:self.n_extend_tokens])
         return next_blocks, prev_blocks
 
@@ -121,13 +121,13 @@ class TextDataLoader(DataLoader):
 
 class Data:
 
-    def __init__(self, data_config, tokenizer_config, n_blocks, n_tokens):
+    def __init__(self, data_config, tokenizer_config, fold_id, n_blocks, n_tokens):
         self.data_config = data_config
         self.tokenizer_config = tokenizer_config
         self.block_size = data_config["block_size"]
         
         logging = data_config["logging"]
-        data_name = data_config["name"]
+        data_name = data_config["name"] + f"_{fold_id}"
         model_name = tokenizer_config["name"].replace("/", "_")
         self.cookie_folder = logging["cookie"]
         self.tensorboard_dir = logging["tensorboard"] + "/" + data_name + "/" + model_name
@@ -136,8 +136,9 @@ class Data:
         self.punc_labels = data_config["dataset"]["punc_labels"]
 
         self.tokenizer = None
-        train_data = self.read_file(data_config["dataset"]["train"])
-        test_data = self.read_file(data_config["dataset"]["test"])
+        folder = f"{data_config['dataset']['folder']}/fold_{fold_id}"
+        train_data = self.read_file(f"{folder}/train.txt")
+        test_data = self.read_file(f"{folder}/test.txt")
 
         pad_id = self.read_pad_token_id()
         batch_size = data_config["hyperparams"]["batch_size"]
@@ -186,7 +187,7 @@ class Data:
         return cookie.save_cookie(blocks)
 
     @classmethod
-    def from_config(cls, data_config, model_config, n_blocks=3, n_tokens=50):
+    def from_config(cls, data_config, model_config, fold_id=0, n_blocks=3, n_tokens=50):
         data_config = read_json(data_config)
         tokenizer_config = read_json(model_config)["tokenizer"]
-        return cls(data_config, tokenizer_config, n_blocks, n_tokens)
+        return cls(data_config, tokenizer_config, fold_id, n_blocks, n_tokens)

@@ -9,12 +9,8 @@ class BERTModel(nn.Module):
     def __init__(self, model_config, norm_labels, punc_labels, hidden_dim, model_mode, use_biaffine=True):
         super().__init__()
         self.bert = get_model(model_config)
-        if model_mode != "nojoint":
-            self.attn = AttentionLayer(self.bert.config.hidden_size, hidden_dim)
-            hidden_dim = self.attn.output_dim
-        else:
-            self.attn = None
-            hidden_dim = self.bert.config.hidden_size
+        self.attn = AttentionLayer(self.bert.config.hidden_size, hidden_dim)
+        hidden_dim = self.attn.output_dim
         mlp_dim = hidden_dim // 2
         self.n_norm_labels = len(norm_labels)
         self.n_punc_labels = len(punc_labels)
@@ -32,14 +28,12 @@ class BERTModel(nn.Module):
             self.norm_mlp = nn.Linear(hidden_dim+mlp_dim, mlp_dim)
             self.punc_mlp = nn.Linear(hidden_dim, mlp_dim)
 
-        self.norm_decoder = nn.Linear(mlp_dim, self.n_norm_labels)
-        self.punc_decoder = nn.Linear(mlp_dim, self.n_punc_labels)
-
         if self.use_biaffine:
-            if self.mode == "punc_to_norm":
-                self.norm_decoder = BiaffineAttention(mlp_dim, self.n_norm_labels)
-            if self.mode == "norm_to_punc":
-                self.punc_decoder = BiaffineAttention(mlp_dim, self.n_punc_labels)
+            self.norm_decoder = BiaffineAttention(mlp_dim, self.n_norm_labels)
+            self.punc_decoder = BiaffineAttention(mlp_dim, self.n_punc_labels)
+        else:
+            self.norm_decoder = nn.Linear(mlp_dim, self.n_norm_labels)
+            self.punc_decoder = nn.Linear(mlp_dim, self.n_punc_labels)
         
         self.norm_criterion = nn.CrossEntropyLoss()
         self.punc_criterion = nn.CrossEntropyLoss()
@@ -104,17 +98,12 @@ class BERTModel(nn.Module):
         norm_mlp_output = torch.tanh(norm_mlp_output)
         punc_mlp_output = torch.tanh(punc_mlp_output)
 
-        norm_logits = None
-        punc_logits = None
-        if self.use_biaffine and self.mode == "norm_to_punc":
-            punc_logits = self.punc_decoder(punc_mlp_output, norm_mlp_output)
-        if self.use_biaffine and self.mode == "punc_to_norm":
+        if self.use_biaffine:
             norm_logits = self.norm_decoder(norm_mlp_output, punc_mlp_output)
-
-        if norm_logits is None:
-            norm_logits = self.norm_decoder(norm_mlp_output)
-        if punc_logits is None:
+            punc_logits = self.punc_decoder(punc_mlp_output, norm_mlp_output)
+        else:
             punc_logits = self.punc_decoder(punc_mlp_output)
+            norm_logits = self.norm_decoder(norm_mlp_output)
 
         if norm_ids is None and punc_ids is None:
             return norm_logits, punc_logits

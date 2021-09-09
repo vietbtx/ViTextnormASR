@@ -14,4 +14,4 @@ module load pytorch/1.9.0
 source /home/582/tn0796/NLP/venv/bin/activate
 
 cd /home/582/tn0796/NLP/ViTextnormASR/
-python main.py
+python main.py 2
