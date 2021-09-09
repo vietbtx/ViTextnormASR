@@ -1,5 +1,5 @@
 #!/bin/bash
-#PBS -N ViTextnorm
+#PBS -N ViTextnorm_3
 #PBS -q gpuvolta
 #PBS -P aw84
 #PBS -l walltime=24:00:00
