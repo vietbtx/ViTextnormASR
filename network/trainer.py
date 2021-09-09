@@ -78,6 +78,7 @@ def train(data_config, model_config, model_mode, n_blocks=0, n_tokens=0, biaffin
     n_epochs = data.n_epochs
     scheduler = linear_schedule(optimizer, num_warmup_steps=total_step//8, num_training_steps=n_epochs*total_step)
     for epoch in range(n_epochs):
+        torch.cuda.empty_cache()
         model.train()
         for step, batch in enumerate(data.train_loader):
             global_step += 1
@@ -121,5 +122,3 @@ def train(data_config, model_config, model_mode, n_blocks=0, n_tokens=0, biaffin
             best_f1_scores["punc"] = test_f1_punc
             print(f"Best F1 punc: {test_f1_punc:.5f}")
             writer.add_text("test_punc", str(test_punc_score), epoch)
-        
-        torch.cuda.empty_cache()

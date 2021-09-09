@@ -80,4 +80,7 @@ if __name__=="__main__":
     
     for fold_id, mode, n_blocks, n_tokens, biaffine in train_data:
         config = f"configs/config.norm.fold_{fold_id}.json"
-        train(config, velectra, mode, n_blocks=n_blocks, n_tokens=n_tokens, biaffine=biaffine)
+        try:
+            train(config, velectra, mode, n_blocks=n_blocks, n_tokens=n_tokens, biaffine=biaffine)
+        except:
+            pass
