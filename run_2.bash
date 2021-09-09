@@ -14,4 +14,27 @@ module load pytorch/1.9.0
 source /home/582/tn0796/NLP/venv/bin/activate
 
 cd /home/582/tn0796/NLP/ViTextnormASR/
-python main.py 2
+
+python main.py --fold-id 2 --mode nojoint --n-blocks 0 --n-tokens 0
+python main.py --fold-id 2 --mode norm_to_punc --n-blocks 0 --n-tokens 0
+python main.py --fold-id 2 --mode punc_to_norm --n-blocks 0 --n-tokens 0
+
+python main.py --fold-id 2 --mode nojoint --n-blocks 0 --n-tokens 50
+python main.py --fold-id 2 --mode norm_to_punc --n-blocks 0 --n-tokens 50
+python main.py --fold-id 2 --mode punc_to_norm --n-blocks 0 --n-tokens 50
+
+python main.py --fold-id 2 --mode nojoint --n-blocks 4 --n-tokens 50
+python main.py --fold-id 2 --mode norm_to_punc --n-blocks 4 --n-tokens 50
+python main.py --fold-id 2 --mode punc_to_norm --n-blocks 4 --n-tokens 50
+
+python main.py --fold-id 2 --mode nojoint --n-blocks 0 --n-tokens 0 --use-biaffine
+python main.py --fold-id 2 --mode norm_to_punc --n-blocks 0 --n-tokens 0 --use-biaffine
+python main.py --fold-id 2 --mode punc_to_norm --n-blocks 0 --n-tokens 0 --use-biaffine
+
+python main.py --fold-id 2 --mode nojoint --n-blocks 0 --n-tokens 50 --use-biaffine
+python main.py --fold-id 2 --mode norm_to_punc --n-blocks 0 --n-tokens 50 --use-biaffine
+python main.py --fold-id 2 --mode punc_to_norm --n-blocks 0 --n-tokens 50 --use-biaffine
+
+python main.py --fold-id 2 --mode nojoint --n-blocks 4 --n-tokens 50 --use-biaffine
+python main.py --fold-id 2 --mode norm_to_punc --n-blocks 4 --n-tokens 50 --use-biaffine
+python main.py --fold-id 2 --mode punc_to_norm --n-blocks 4 --n-tokens 50 --use-biaffine

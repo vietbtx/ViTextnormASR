@@ -1,43 +1,28 @@
 from network.trainer import train
-import sys
+import argparse
 
 
-if __name__=="__main__":
-    fold_id = int(sys.argv[1])
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description='Hyper-parameters for Vietnamese Text Normalization')
+    parser.add_argument('--data-config', type=str, default="configs/config.norm.json")
+    parser.add_argument('--bert-config', type=str, default="configs/config.velectra.json")
+    parser.add_argument('--fold-id', type=int, default=0)
+    parser.add_argument('--mode', type=str, default="nojoint")
+    parser.add_argument('--n-blocks', type=int, default=0)
+    parser.add_argument('--n-tokens', type=int, default=0)
+    parser.add_argument('--use-biaffine', action='store_true', default=False)
     
-    config = "configs/config.norm.json"
-    mbert = "configs/config.mbert.json"
-    vibert = "configs/config.vibert.json"
-    velectra = "configs/config.velectra.json"
+    args = parser.parse_args()
 
-    train_data = [
-        ("nojoint", 4, 50, True),
-        ("norm_to_punc", 4, 50, True),
-        ("punc_to_norm", 4, 50, True),
-
-        ("nojoint", 0, 50, True),
-        ("norm_to_punc", 0, 50, True),
-        ("punc_to_norm", 0, 50, True),
-
-        ("nojoint", 0, 0, True),
-        ("norm_to_punc", 0, 0, True),
-        ("punc_to_norm", 0, 0, True),
-
-        ("nojoint", 4, 50, False),
-        ("norm_to_punc", 4, 50, False),
-        ("punc_to_norm", 4, 50, False),
-
-        ("nojoint", 0, 50, False),
-        ("norm_to_punc", 0, 50, False),
-        ("punc_to_norm", 0, 50, False),
-
-        ("nojoint", 0, 0, False),
-        ("norm_to_punc", 0, 0, False),
-        ("punc_to_norm", 0, 0, False),
-    ]
-    
-    for mode, n_blocks, n_tokens, biaffine in train_data:
-        try:
-            train(config, velectra, mode, fold_id, n_blocks=n_blocks, n_tokens=n_tokens, biaffine=biaffine)
-        except Exception as e:
-            print("Error:", e)
+    try:
+        train(
+            args.data_config,
+            args.bert_config,
+            args.mode,
+            args.fold_id,
+            n_blocks=args.n_blocks,
+            n_tokens=args.n_tokens,
+            biaffine=args.use_biaffine
+        )
+    except Exception as e:
+        print("Error:", e)
