@@ -9,7 +9,7 @@ class BERTModel(nn.Module):
     def __init__(self, model_config, norm_labels, punc_labels, hidden_dim, model_mode, use_biaffine=True):
         super().__init__()
         self.bert = get_model(model_config)
-        if self.mode != "nojoint":
+        if model_mode != "nojoint":
             self.attn = AttentionLayer(self.bert.config.hidden_size, hidden_dim)
             hidden_dim = self.attn.output_dim
         else:
