@@ -23,10 +23,6 @@ python main.py --fold-id 4 --mode nojoint --n-blocks 0 --n-tokens 50
 python main.py --fold-id 4 --mode norm_to_punc --n-blocks 0 --n-tokens 50
 python main.py --fold-id 4 --mode punc_to_norm --n-blocks 0 --n-tokens 50
 
-python main.py --fold-id 4 --mode nojoint --n-blocks 4 --n-tokens 50
-python main.py --fold-id 4 --mode norm_to_punc --n-blocks 4 --n-tokens 50
-python main.py --fold-id 4 --mode punc_to_norm --n-blocks 4 --n-tokens 50
-
 python main.py --fold-id 4 --mode nojoint --n-blocks 0 --n-tokens 0 --use-biaffine
 python main.py --fold-id 4 --mode norm_to_punc --n-blocks 0 --n-tokens 0 --use-biaffine
 python main.py --fold-id 4 --mode punc_to_norm --n-blocks 0 --n-tokens 0 --use-biaffine
@@ -34,7 +30,3 @@ python main.py --fold-id 4 --mode punc_to_norm --n-blocks 0 --n-tokens 0 --use-b
 python main.py --fold-id 4 --mode nojoint --n-blocks 0 --n-tokens 50 --use-biaffine
 python main.py --fold-id 4 --mode norm_to_punc --n-blocks 0 --n-tokens 50 --use-biaffine
 python main.py --fold-id 4 --mode punc_to_norm --n-blocks 0 --n-tokens 50 --use-biaffine
-
-python main.py --fold-id 4 --mode nojoint --n-blocks 4 --n-tokens 50 --use-biaffine
-python main.py --fold-id 4 --mode norm_to_punc --n-blocks 4 --n-tokens 50 --use-biaffine
-python main.py --fold-id 4 --mode punc_to_norm --n-blocks 4 --n-tokens 50 --use-biaffine
