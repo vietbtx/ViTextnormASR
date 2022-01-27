@@ -85,25 +85,32 @@ if __name__=="__main__":
     kf = KFold(n_splits=5, shuffle=True)
     kf.get_n_splits(all_urls)
 
-    for fold_id, (train_index, test_index) in enumerate(kf.split(all_urls)):
-        print("Fold:", fold_id)
-        os.makedirs("dataset", exist_ok=True)
-        os.makedirs(f"dataset/fold_{fold_id}", exist_ok=True)
-        train_urls = [all_urls[x] for x in train_index]
-        test_urls = [all_urls[x] for x in test_index]
 
-        print(f"    - Train:\t{len(train_urls)} articles")
-        print(f"    - Test:\t{len(test_urls)} articles")
+    os.makedirs("dataset", exist_ok=True)
+    train_pos = int(len(all_urls) * 0.7)
+    dev_pos = int(len(all_urls) * 0.8)
+    train_urls = all_urls[:train_pos]
+    dev_urls = all_urls[train_pos:dev_pos]
+    test_urls = all_urls[dev_pos:]
 
-        write_csv(f"dataset/fold_{fold_id}/train_metadata.csv", {url: data[url] for url in train_urls})
-        write_csv(f"dataset/fold_{fold_id}/test_metadata.csv", {url: data[url] for url in test_urls})
-        
-        train_data = []
-        test_data = []
-        for url, result in content.items():
-            if url in train_urls:
-                train_data += result
-            elif url in test_urls:
-                test_data += result
-        write_data(f"dataset/fold_{fold_id}/train.txt", train_data)
-        write_data(f"dataset/fold_{fold_id}/test.txt", test_data)
+    print(f"    - Train:\t{len(train_urls)} articles")
+    print(f"    - Dev:\t{len(dev_urls)} articles")
+    print(f"    - Test:\t{len(test_urls)} articles")
+
+    write_csv(f"dataset/train_metadata.csv", {url: data[url] for url in train_urls})
+    write_csv(f"dataset/dev_metadata.csv", {url: data[url] for url in dev_urls})
+    write_csv(f"dataset/test_metadata.csv", {url: data[url] for url in test_urls})
+    
+    train_data = []
+    dev_data = []
+    test_data = []
+    for url, result in content.items():
+        if url in train_urls:
+            train_data += result
+        elif url in dev_urls:
+            dev_data += result
+        elif url in test_urls:
+            test_data += result
+    write_data(f"dataset/train.conll", train_data)
+    write_data(f"dataset/dev.conll", dev_data)
+    write_data(f"dataset/test.conll", test_data)

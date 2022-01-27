@@ -1,8 +1,5 @@
-
-
 from collections import Counter
 import csv
-
 
 def read_data(file_name):
     data = []
@@ -23,7 +20,7 @@ def read_csv(file_name):
     return data[1:]
 
 def analyze(name):
-    data = read_data(f"dataset/fold_0/{name}.txt")
+    data = read_data(f"dataset/{name}.conll")
     print(f"Number of tokens: {len(data)}")
     labels_1 = [item[1] for item in data]
     labels_1 = Counter(labels_1)
@@ -36,14 +33,13 @@ def analyze(name):
     for label in ["PERIOD", "COMMA", "QMARK", "EMARK", "COLON", "SCOLON", "DASH", "O"]:
         print(f"{label:>16}: {labels_2[label]}")
     
-    data = read_csv(f"dataset/fold_0/{name}_metadata.csv")
-    print("pages:", len(data))
-    min_url = min(data, key=lambda x: int(x[2][1:]))[0]
-    print("min_url:", min_url)
-    max_url = max(data, key=lambda x: int(x[2][1:]))[0]
-    print("max_url:", max_url)
-    print(" "*10 + "-"*20)
-
+    # data = read_csv(f"dataset/fold_0/{name}_metadata.csv")
+    # print("pages:", len(data))
+    # min_url = min(data, key=lambda x: int(x[2][1:]))[0]
+    # print("min_url:", min_url)
+    # max_url = max(data, key=lambda x: int(x[2][1:]))[0]
+    # print("max_url:", max_url)
+    # print(" "*10 + "-"*20)
 
 if __name__ == "__main__":
     print("train data")
