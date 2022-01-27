@@ -1,8 +1,6 @@
 # ViTextnormASR
 
 ## Step 1:
-Run create_dataset.py
+Run create_dataset.py or download our dataset from <a href="http://smu.sg/tr0">here</a> and move to the dataset folder
 ## Step 2:
-Edit configuration at run_0.bash, run_1.bash, ...
-## Step 3:
 Run all these bash files
