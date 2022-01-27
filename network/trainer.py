@@ -102,6 +102,17 @@ def train(data_config, model_config, model_mode, fold_id=0, n_blocks=0, n_tokens
             scheduler.step()
             model.zero_grad()
 
+        dev_norm_score, dev_punc_score = evaluate(model, data.dev_loader, data.norm_labels, data.punc_labels)
+
+        for name, score in dev_norm_score.items():
+            writer.add_scalar(f"dev_norm/{name}", score["f1-score"], epoch)
+        for name, score in dev_punc_score.items():
+            writer.add_scalar(f"dev_punc/{name}", score["f1-score"], epoch)
+
+        dev_f1_norm = dev_norm_score["micro avg"]["f1-score"]
+        dev_f1_punc = dev_punc_score["micro avg"]["f1-score"]
+        print(f"\nDev score: norm = {dev_f1_norm:.5f}, punc = {dev_f1_punc:.5f}")
+
         test_norm_score, test_punc_score = evaluate(model, data.test_loader, data.norm_labels, data.punc_labels)
 
         for name, score in test_norm_score.items():
@@ -113,12 +124,14 @@ def train(data_config, model_config, model_mode, fold_id=0, n_blocks=0, n_tokens
         test_f1_punc = test_punc_score["micro avg"]["f1-score"]
         print(f"\nTest score: norm = {test_f1_norm:.5f}, punc = {test_f1_punc:.5f}")
 
-        if test_f1_norm > best_f1_scores["norm"]:
-            best_f1_scores["norm"] = test_f1_norm
-            print(f"Best F1 norm: {test_f1_norm:.5f}")
+        if dev_f1_norm > best_f1_scores["norm"]:
+            best_f1_scores["norm"] = dev_f1_norm
+            print(f"Best F1 norm: dev={dev_f1_norm:.5f} & test={test_f1_norm:.5f}")
             writer.add_text("test_norm", str(test_norm_score), epoch)
+            writer.add_scalar(f"F1_score/norm", test_f1_norm, epoch)
         
-        if test_f1_punc > best_f1_scores["punc"]:
-            best_f1_scores["punc"] = test_f1_punc
-            print(f"Best F1 punc: {test_f1_punc:.5f}")
+        if dev_f1_punc > best_f1_scores["punc"]:
+            best_f1_scores["punc"] = dev_f1_punc
+            print(f"Best F1 punc: dev={dev_f1_punc:.5f} & test={test_f1_punc:.5f}")
             writer.add_text("test_punc", str(test_punc_score), epoch)
+            writer.add_scalar(f"F1_score/punc", test_f1_punc, epoch)

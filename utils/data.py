@@ -121,13 +121,13 @@ class TextDataLoader(DataLoader):
 
 class Data:
 
-    def __init__(self, data_config, tokenizer_config, fold_id, n_blocks, n_tokens):
+    def __init__(self, data_config, tokenizer_config, n_blocks, n_tokens):
         self.data_config = data_config
         self.tokenizer_config = tokenizer_config
         self.block_size = data_config["block_size"]
         
         logging = data_config["logging"]
-        data_name = data_config["name"] + f"_{fold_id}"
+        data_name = data_config["name"]
         model_name = tokenizer_config["name"].replace("/", "_")
         self.cookie_folder = logging["cookie"]
         self.tensorboard_dir = logging["tensorboard"] + "/" + data_name + "/" + model_name
@@ -136,9 +136,10 @@ class Data:
         self.punc_labels = data_config["dataset"]["punc_labels"]
 
         self.tokenizer = None
-        folder = f"{data_config['dataset']['folder']}/fold_{fold_id}"
-        train_data = self.read_file(f"{folder}/train.txt")
-        test_data = self.read_file(f"{folder}/test.txt")
+        folder = f"{data_config['dataset']['folder']}"
+        train_data = self.read_file(f"{folder}/train.conll")
+        dev_data = self.read_file(f"{folder}/dev.conll")
+        test_data = self.read_file(f"{folder}/test.conll")
 
         pad_id = self.read_pad_token_id()
         batch_size = data_config["hyperparams"]["batch_size"]
@@ -149,6 +150,7 @@ class Data:
         self.device = device
 
         self.train_loader = TextDataLoader(train_data, pad_id, n_blocks, n_tokens, True, batch_size, device)
+        self.dev_loader = TextDataLoader(dev_data, pad_id, n_blocks, n_tokens, True, batch_size, device)
         self.test_loader = TextDataLoader(test_data, pad_id, n_blocks, n_tokens, False, batch_size, device)
     
     def read_pad_token_id(self):
