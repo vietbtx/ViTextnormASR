@@ -5,7 +5,7 @@
     "norm_labels": ["B-CAP", "B-ALLCAP", "B-NUMB", "I-ALLCAP", "I-NUMB", "O"],
     "punc_labels": ["PERIOD", "COMMA", "QMARK", "EMARK", "COLON", "SCOLON", "DASH", "O"]
   },
-  "block_size": 100,
+  "block_size": 200,
   "logging": {
     "tensorboard": "logs",
     "cookie": "cookie"
