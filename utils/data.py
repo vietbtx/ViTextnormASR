@@ -189,7 +189,7 @@ class Data:
         return cookie.save_cookie(blocks)
 
     @classmethod
-    def from_config(cls, data_config, model_config, fold_id=0, n_blocks=3, n_tokens=50):
+    def from_config(cls, data_config, model_config, n_blocks=3, n_tokens=50):
         data_config = read_json(data_config)
         tokenizer_config = read_json(model_config)["tokenizer"]
-        return cls(data_config, tokenizer_config, fold_id, n_blocks, n_tokens)
+        return cls(data_config, tokenizer_config, n_blocks, n_tokens)

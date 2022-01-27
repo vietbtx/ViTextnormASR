@@ -64,8 +64,8 @@ def evaluate(model, data_loader, norm_dict, punc_dict):
     return norm_score, punc_score
 
 
-def train(data_config, model_config, model_mode, fold_id=0, n_blocks=0, n_tokens=0, biaffine=True):
-    data = Data.from_config(data_config, model_config, fold_id, n_blocks, n_tokens)
+def train(data_config, model_config, model_mode, n_blocks=0, n_tokens=0, biaffine=True):
+    data = Data.from_config(data_config, model_config, n_blocks, n_tokens)
     writer = SummaryWriter(f"{data.tensorboard_dir}/{model_mode}/{n_blocks}-{n_tokens}-{biaffine}")
     model = BERTModel.from_config(model_config, data.norm_labels, data.punc_labels, data.hidden_dim, model_mode, biaffine)
     model.to(data.device)
@@ -122,7 +122,7 @@ def train(data_config, model_config, model_mode, fold_id=0, n_blocks=0, n_tokens
 
         test_f1_norm = test_norm_score["micro avg"]["f1-score"]
         test_f1_punc = test_punc_score["micro avg"]["f1-score"]
-        print(f"\nTest score: norm = {test_f1_norm:.5f}, punc = {test_f1_punc:.5f}")
+        print(f"Test score: norm = {test_f1_norm:.5f}, punc = {test_f1_punc:.5f}")
 
         if dev_f1_norm > best_f1_scores["norm"]:
             best_f1_scores["norm"] = dev_f1_norm
