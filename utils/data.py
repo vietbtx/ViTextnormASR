@@ -11,7 +11,7 @@ class DataLoader(DataLoader):
         self.pad_token_id = pad_token_id
         self.device = device
         self.extend_tokens = extend_tokens
-        self.max_seq_len = 256
+        self.max_seq_len = 512
 
     def read_ids(self, block, read_tokens_only=True):
         input_ids = []

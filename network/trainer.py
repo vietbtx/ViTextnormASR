@@ -60,7 +60,9 @@ def train(data_config, model_config, model_mode, extend_tokens):
     data = Data.from_config(data_config, model_config, extend_tokens)
     writer = SummaryWriter(f"{data.tensorboard_dir}/{phase_name}")
     mode = "punc" if model_mode in ["norm_only", "punc_to_norm"] else "norm"
-    adapter_path = f"./pretrained_models/{data.model_name}/{mode}_only/model_{mode}"
+    adapter_path = f"./pretrained_models/{data.model_name}/{mode}_only"
+    adapter_path = f"{adapter_path}+SC" if extend_tokens else adapter_path
+    adapter_path = f"{adapter_path}/model_{mode}"
     model = AdapterModel.from_config(model_config, data.norm_labels, data.punc_labels, model_mode, adapter_path)
     model.to(data.device)
     optimizer = init_default_optimizer(model, data.learning_rate, 0.001)
