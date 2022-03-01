@@ -45,10 +45,11 @@ class AdapterModel(nn.Module):
         if norm_ids is None and punc_ids is None:
             return logits
         else:
-            if self.model_mode in ["norm_only", "punc_to_norm"]:
+            if norm_ids is not None:
                 norm_ids = norm_ids.view(-1)
-                loss = self.criterion(logits.view(norm_ids.shape[0], -1), norm_ids)
-            elif self.model_mode in ["punc_only", "norm_to_punc"]:
+                norm_loss = self.criterion(logits.view(norm_ids.shape[0], -1), norm_ids)
+            if punc_ids is not None:
                 punc_ids = punc_ids.view(-1)
-                loss = self.criterion(logits.view(punc_ids.shape[0], -1), punc_ids)
+                punc_loss = self.criterion(logits.view(punc_ids.shape[0], -1), punc_ids)
+            loss = norm_loss + punc_loss
             return loss
