@@ -134,8 +134,6 @@ def train(data_config, model_config, model_mode, extend_tokens):
             optimizer.step()
             scheduler.step()
             model.zero_grad()
-            if step > 10:
-                break
         writer.add_text(f"time/train", str(time() - t0), epoch)
         
         t0 = time()
