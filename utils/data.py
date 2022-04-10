@@ -39,14 +39,14 @@ class DataLoader(DataLoader):
         return prev_tokens
 
     def get_extend_tokens(self, input_ids, norm_ids, punc_ids, block_id):
-        k = 0
+        id = 0
         while True:
-            next_tokens = self.get_next_tokens(block_id + k)
-            prev_tokens = self.get_prev_tokens(block_id - k)
+            next_tokens = self.get_next_tokens(block_id + id)
+            prev_tokens = self.get_prev_tokens(block_id - id)
             input_ids = prev_tokens + input_ids + next_tokens
             norm_ids = [-100]*len(prev_tokens) + norm_ids + [-100]*len(next_tokens)
             punc_ids = [-100]*len(prev_tokens) + punc_ids + [-100]*len(next_tokens)
-            k += 1
+            id += 1
             if len(input_ids) > self.max_seq_len - 2:
                 while len(input_ids) > self.max_seq_len - 2:
                     if norm_ids[0] == -100:
@@ -58,7 +58,6 @@ class DataLoader(DataLoader):
                         punc_ids = punc_ids[:-1]
                         input_ids = input_ids[:-1]
                 break
-        
         return input_ids, norm_ids, punc_ids
 
     def add_padding(self, ids, max_len, pad_id):

@@ -8,8 +8,6 @@ if __name__ == "__main__":
     parser.add_argument('--bert-config', type=str, default="configs/config.velectra.json")
     parser.add_argument('--mode', type=str, default="nojoint")
     parser.add_argument('--extend-tokens', action='store_true', default=False)
-
-    
     args = parser.parse_args()
 
     train(
