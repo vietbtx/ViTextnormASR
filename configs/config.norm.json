@@ -15,6 +15,6 @@
     "learning_rate": 2e-5,
     "n_epochs": 100,
     "batch_size": 16,
-    "device": "cpu"
+    "device": "cuda"
   }
 }
