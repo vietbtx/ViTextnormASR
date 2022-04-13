@@ -8,13 +8,13 @@
   "block_size": 200,
   "logging": {
     "tensorboard": "logs",
-    "cookie": "__pycache__"
+    "cookie": "cookie"
   },
   "hyperparams": {
     "hidden_dim": 512,
     "learning_rate": 2e-5,
     "n_epochs": 100,
-    "batch_size": 16,
+    "batch_size": 32,
     "device": "cuda"
   }
 }

@@ -1,161 +1,117 @@
-from collections import Counter, defaultdict
 import torch
 import torch.nn as nn
+import torch.nn.functional as F
 from utils.utils import get_model, read_json
+from .layers import AttentionLayer, BiaffineAttention
 
-class SpanDecoder(nn.Module):
+class BERTModel(nn.Module):
 
-    def __init__(self, input_dim, labels, addion_dim=0, use_span=False, max_span_distance=8):
-        super().__init__()
-        self.input_dim = input_dim
-        self.labels = labels
-        self.span_labels = [label for label in labels if not label.startswith("I-")]
-        self.use_span = use_span and len(self.span_labels) != len(labels)
-        self.max_span_distance = max_span_distance
-        if self.use_span:
-            self.distance_emb = nn.Embedding(max_span_distance, input_dim)
-            input_dim = input_dim*3
-            self.decoder_len = len(self.span_labels)
-        else:
-            self.decoder_len = len(labels)
-        self.decoder = nn.Linear(input_dim + addion_dim, self.decoder_len)
-        self.criterion = nn.CrossEntropyLoss()
-
-    def generate_pred_label_ids(self, logits, label_ids, pair_ids=None):
-        pred_ids = torch.argmax(logits, -1).view(-1).detach().cpu().numpy().tolist()
-        if not self.use_span or pair_ids is None:
-            return pred_ids
-        all_pred_labels = {}
-        for (batch_id, s_id, e_id), pred_id in zip(pair_ids, pred_ids):
-            pred_label = self.span_labels[pred_id]
-            if pred_label != "O":
-                pred_label = pred_label[2:]
-                if e_id == s_id or f"I-{pred_label}" not in self.labels:
-                    pred_label = f"B-{pred_label}"
-                else:
-                    pred_label = f"I-{pred_label}"
-            if batch_id not in all_pred_labels:
-                all_pred_labels[batch_id] = defaultdict(list)
-            for id in range(s_id, e_id+1):
-                all_pred_labels[batch_id][id].append(pred_label)
-        all_pred_ids = []
-        for batch_id, gold_ids in enumerate(label_ids):
-            pred_labels = all_pred_labels[batch_id]
-            new_pred_ids = []
-            prev_label = "O"
-            for i, _ in enumerate(gold_ids):
-                if i in pred_labels:
-                    _pred_labels = pred_labels[i]
-                    if prev_label == "O":
-                        _pred_labels = [label for label in _pred_labels if not label.startswith("I-")]
-                    else:
-                        _pred_labels = [label for label in _pred_labels if label in ["O", f"B-{prev_label}", f"I-{prev_label}"]]
-                    _pred_labels = [label for label in _pred_labels if label != "O"]
-                    if len(_pred_labels) == 0:
-                        _pred_labels = ["O"]
-                    new_pred_label = Counter(_pred_labels).most_common(1)[0][0]
-                    new_pred_ids.append(self.labels.index(new_pred_label))
-                    prev_label = new_pred_label[2:] if new_pred_label != "O" else "O"
-                else:
-                    new_pred_ids.append(-100)
-            all_pred_ids += new_pred_ids
-        return all_pred_ids
-
-    def prepare_inputs(self, features, label_ids):
-        inputs = []
-        all_label_ids = []
-        pair_ids = []
-        for batch_id, (_features, _norm_ids) in enumerate(zip(features, label_ids)):
-            s_span_ids = []
-            e_span_ids = []
-            distance_ids = []
-            _label_ids = []
-            for s_id, s_norm_id in enumerate(_norm_ids):
-                for e_id, e_norm_id in enumerate(_norm_ids):
-                    if s_norm_id == -100 or e_norm_id == -100 or s_id > e_id:
-                        continue
-                    distance = len([id for id in _norm_ids[s_id:e_id+1] if id != -100]) - 1
-                    if distance >= self.max_span_distance:
-                        continue
-                    s_norm_label = self.labels[s_norm_id]
-                    e_norm_label = self.labels[e_norm_id]
-                    label_id = self.span_labels.index("O")
-                    if s_norm_label != "O" and e_norm_label != "O":
-                        if s_norm_label[2:] == e_norm_label[2:]:
-                            label_id = self.span_labels.index("B-" + s_norm_label[2:])
-                    s_span_ids.append(s_id)
-                    e_span_ids.append(e_id)
-                    distance_ids.append(distance)
-                    _label_ids.append(label_id)
-                    pair_ids.append((batch_id, s_id, e_id))
-            s_features = _features[s_span_ids]
-            e_features = _features[e_span_ids]
-            d_deatures = self.distance_emb(torch.LongTensor(distance_ids).to(_features.device))
-            _inputs = torch.concat((s_features, e_features, d_deatures), -1)
-            inputs.append(_inputs)
-            all_label_ids.append(torch.LongTensor(_label_ids).to(_features.device))
-        return inputs, all_label_ids, pair_ids
-
-    def forward(self, features, label_ids):
-        if not self.use_span:
-            logits = self.decoder(features)
-            if self.training:
-                label_ids = label_ids.view(-1)
-                norm_loss = self.criterion(logits.view(label_ids.shape[0], -1), label_ids)
-                return logits, norm_loss
-            else:
-                pred_ids = self.generate_pred_label_ids(logits, label_ids)
-                return logits, pred_ids
-        inputs, all_label_ids, pair_ids = self.prepare_inputs(features, label_ids)
-        logits = self.decoder(torch.concat(inputs))
-        norm_loss = self.criterion(logits, torch.concat(all_label_ids))
-        if not self.training:
-            pred_ids = self.generate_pred_label_ids(logits, label_ids, pair_ids)
-            return logits, pred_ids
-        return logits, norm_loss
-
-
-class Model(nn.Module):
-
-    def __init__(self, model_config, norm_labels, punc_labels, model_mode):
+    def __init__(self, model_config, norm_labels, punc_labels, hidden_dim, model_mode, use_biaffine=True):
         super().__init__()
         self.bert = get_model(model_config)
-        self.model_mode = model_mode
-        self.norm_labels = norm_labels
-        self.punc_labels = punc_labels
-        emb_len = self.bert.config.hidden_size
-        if model_mode == "norm_only":
-            self.norm_decoder = SpanDecoder(emb_len, norm_labels)
-        elif model_mode == "punc_only":
-            self.punc_decoder = SpanDecoder(emb_len, punc_labels)
-        elif model_mode == "norm_to_punc":
-            self.norm_decoder = SpanDecoder(emb_len, norm_labels)
-            self.punc_decoder = SpanDecoder(emb_len, punc_labels, len(norm_labels))
-        elif model_mode == "punc_to_norm":
-            self.punc_decoder = SpanDecoder(emb_len, punc_labels)
-            self.norm_decoder = SpanDecoder(emb_len, norm_labels, len(punc_labels))
+        self.attn = AttentionLayer(self.bert.config.hidden_size, hidden_dim)
+        hidden_dim = self.attn.output_dim
+        mlp_dim = hidden_dim // 2
+        self.n_norm_labels = len(norm_labels)
+        self.n_punc_labels = len(punc_labels)
+
+        self.mode = model_mode
+        self.use_biaffine = use_biaffine
+        
+        if self.mode == "nojoint":
+            self.norm_mlp = nn.Linear(hidden_dim, mlp_dim)
+            self.punc_mlp = nn.Linear(hidden_dim, mlp_dim)
+        elif self.mode == "norm_to_punc":
+            self.norm_mlp = nn.Linear(hidden_dim, mlp_dim)
+            self.punc_mlp = nn.Linear(hidden_dim+mlp_dim, mlp_dim)
+        elif self.mode == "punc_to_norm":
+            self.norm_mlp = nn.Linear(hidden_dim+mlp_dim, mlp_dim)
+            self.punc_mlp = nn.Linear(hidden_dim, mlp_dim)
+
+        if self.use_biaffine:
+            self.norm_decoder = BiaffineAttention(mlp_dim, self.n_norm_labels)
+            self.punc_decoder = BiaffineAttention(mlp_dim, self.n_punc_labels)
+        else:
+            self.norm_decoder = nn.Linear(mlp_dim, self.n_norm_labels)
+            self.punc_decoder = nn.Linear(mlp_dim, self.n_punc_labels)
+        
+        self.norm_criterion = nn.CrossEntropyLoss()
+        self.punc_criterion = nn.CrossEntropyLoss()
     
     @classmethod
-    def from_config(cls, model_config, norm_labels, punc_labels, model_mode):
+    def from_config(cls, model_config, norm_labels, punc_labels, hidden_dim, model_mode, use_biaffine=True):
         model_config = read_json(model_config)["pretrained_model"]
-        return cls(model_config, norm_labels, punc_labels, model_mode)
+        return cls(model_config, norm_labels, punc_labels, hidden_dim, model_mode, use_biaffine)
 
-    def forward(self, input_ids, mask_ids, norm_ids=None, punc_ids=None):
-        features = self.bert(input_ids, mask_ids)[0]
-        if self.model_mode == "norm_only":
-            if self.training:
-                features.register_hook(lambda grad: grad * 0.01)
-            norm_logits, norm_loss = self.norm_decoder(features, norm_ids)
-            punc_logits, punc_loss = None, torch.tensor(0.0)
-        elif self.model_mode == "punc_only":
-            if self.training:
-                features.register_hook(lambda grad: grad * 0.01)
-            punc_logits = self.punc_decoder(features, punc_ids)
-            norm_logits, norm_loss = None, torch.tensor(0.0)
-        elif self.model_mode == "norm_to_punc":
-            norm_logits, norm_loss = self.norm_decoder(features, norm_ids)
-            punc_logits, punc_loss = self.punc_decoder(torch.cat((features, norm_logits), -1), punc_ids)
-        elif self.model_mode == "punc_to_norm":
-            punc_logits, punc_loss = self.punc_decoder(features, punc_ids)
-            norm_logits, norm_loss = self.norm_decoder(torch.cat((features, punc_logits), -1), norm_ids)
-        return norm_loss, punc_loss
+    def forward_encoders(self, input_ids, mask_ids, next_blocks=None, prev_blocks=None):
+        bert_output = self.bert(input_ids, mask_ids)[0]
+        if next_blocks is not None and prev_blocks is not None:
+            with torch.no_grad():
+                next_blocks = [self.bert(block)[0] for block in next_blocks]
+                prev_blocks = [self.bert(block)[0] for block in prev_blocks]
+                next_blocks = torch.cat(next_blocks, 1)
+                prev_blocks = torch.cat(prev_blocks, 1)
+            bert_output = torch.cat((prev_blocks, bert_output, next_blocks), 1)
+        return bert_output, next_blocks, prev_blocks
+    
+    def forward_hidden_layers(self, bert_output, next_blocks, prev_blocks):
+        if self.attn is None:
+            return bert_output
+        if next_blocks is not None and prev_blocks is not None:
+            bert_output = torch.cat((prev_blocks, bert_output, next_blocks), 1)
+        hidden_output, _ = self.attn(bert_output)
+        if next_blocks is not None and prev_blocks is not None:
+            next_dim = next_blocks.shape[1]
+            prev_dim = prev_blocks.shape[1]
+            hidden_output = hidden_output[:,prev_dim:-next_dim,:].contiguous()
+        hidden_output = torch.tanh(hidden_output)
+        return hidden_output
+    
+    def forward_blocks(self, next_blocks=None, prev_blocks=None):
+        if next_blocks is not None and prev_blocks is not None:
+            with torch.no_grad():
+                next_blocks = [self.forward_bert(block) for block in next_blocks]
+                prev_blocks = [self.forward_bert(block) for block in prev_blocks]
+                next_blocks = torch.cat(next_blocks, 1)
+                prev_blocks = torch.cat(prev_blocks, 1)
+        return next_blocks, prev_blocks
+
+    def forward_bert(self, input_ids, mask_ids=None):
+        bert_output = self.bert(input_ids, mask_ids)[0]
+        if self.training and self.mode == "nojoint":
+            bert_output.register_hook(lambda grad: grad * 0.01)
+        return bert_output
+
+    def forward(self, input_ids, mask_ids, norm_ids=None, punc_ids=None, next_blocks=None, prev_blocks=None):
+        next_blocks, prev_blocks = self.forward_blocks(next_blocks, prev_blocks)
+        bert_output = self.forward_bert(input_ids, mask_ids)
+        hidden_output = self.forward_hidden_layers(bert_output, next_blocks, prev_blocks)
+
+        if self.mode == "nojoint":
+            norm_mlp_output = self.norm_mlp(hidden_output)
+            punc_mlp_output = self.punc_mlp(hidden_output)
+        elif self.mode == "norm_to_punc":
+            norm_mlp_output = self.norm_mlp(hidden_output)
+            punc_mlp_output = self.punc_mlp(torch.cat((hidden_output, norm_mlp_output), -1))
+        elif self.mode == "punc_to_norm":
+            punc_mlp_output = self.punc_mlp(hidden_output)
+            norm_mlp_output = self.norm_mlp(torch.cat((hidden_output, punc_mlp_output), -1))
+
+        norm_mlp_output = torch.tanh(norm_mlp_output)
+        punc_mlp_output = torch.tanh(punc_mlp_output)
+
+        if self.use_biaffine:
+            norm_logits = self.norm_decoder(norm_mlp_output, punc_mlp_output)
+            punc_logits = self.punc_decoder(punc_mlp_output, norm_mlp_output)
+        else:
+            punc_logits = self.punc_decoder(punc_mlp_output)
+            norm_logits = self.norm_decoder(norm_mlp_output)
+
+        if norm_ids is None and punc_ids is None:
+            return norm_logits, punc_logits
+        else:
+            norm_ids = norm_ids.view(-1)
+            punc_ids = punc_ids.view(-1)
+            norm_loss = self.norm_criterion(norm_logits.view(norm_ids.shape[0], -1), norm_ids)
+            punc_loss = self.punc_criterion(punc_logits.view(punc_ids.shape[0], -1), punc_ids)
+            return norm_loss, punc_loss
