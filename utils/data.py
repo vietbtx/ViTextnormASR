@@ -154,8 +154,8 @@ class Data:
         self.device = device
 
         self.train_loader = TextDataLoader(train_data, pad_id, n_blocks, n_tokens, True, batch_size, device)
-        self.dev_loader = TextDataLoader(dev_data, pad_id, n_blocks, n_tokens, True, batch_size, device)
-        self.test_loader = TextDataLoader(test_data, pad_id, n_blocks, n_tokens, False, batch_size, device)
+        self.dev_loader = TextDataLoader(dev_data, pad_id, n_blocks, n_tokens, True, batch_size*8, device)
+        self.test_loader = TextDataLoader(test_data, pad_id, n_blocks, n_tokens, False, batch_size*8, device)
     
     def read_pad_token_id(self):
         cookie = Cookie(["read_pad_token_id", self.tokenizer_config], self.cookie_folder)
