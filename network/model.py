@@ -154,8 +154,8 @@ class Model(nn.Module):
             norm_logits, norm_loss = None, torch.tensor(0.0)
         elif self.model_mode == "norm_to_punc":
             norm_logits, norm_loss = self.norm_decoder(features, norm_ids)
-            punc_logits, punc_loss = self.punc_decoder(torch.concat((features, norm_logits), -1), punc_ids)
+            punc_logits, punc_loss = self.punc_decoder(torch.cat((features, norm_logits), -1), punc_ids)
         elif self.model_mode == "punc_to_norm":
             punc_logits, punc_loss = self.punc_decoder(features, punc_ids)
-            norm_logits, norm_loss = self.norm_decoder(torch.concat((features, punc_logits), -1), norm_ids)
+            norm_logits, norm_loss = self.norm_decoder(torch.cat((features, punc_logits), -1), norm_ids)
         return norm_loss, punc_loss
