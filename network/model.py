@@ -79,7 +79,7 @@ class BERTModel(nn.Module):
     def forward_bert(self, input_ids, mask_ids=None):
         bert_output = self.bert(input_ids, mask_ids)[0]
         if self.training and self.mode == "nojoint":
-            bert_output.register_hook(lambda grad: grad * 0.01)
+            bert_output.register_hook(lambda grad: torch.zeros_like(grad))
         return bert_output
 
     def forward(self, input_ids, mask_ids, norm_ids=None, punc_ids=None, next_blocks=None, prev_blocks=None):

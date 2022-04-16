@@ -67,7 +67,8 @@ def evaluate(model, data_loader, norm_dict, punc_dict):
 def train(data_config, model_config, model_mode, n_blocks=0, n_tokens=0, biaffine=True):
     data = Data.from_config(data_config, model_config, n_blocks, n_tokens)
     writer = SummaryWriter(f"{data.tensorboard_dir}/{model_mode}/{n_blocks}-{n_tokens}-{biaffine}")
-    model = BERTModel.from_config(model_config, data.norm_labels, data.punc_labels, data.hidden_dim, model_mode, biaffine)
+    mode = "nojoint" if model_mode in ["norm_only", "punc_only"] else model_mode
+    model = BERTModel.from_config(model_config, data.norm_labels, data.punc_labels, data.hidden_dim, mode, biaffine)
     model.to(data.device)
     optimizer = init_default_optimizer(model, data.learning_rate, 0.001)
     if amp is not None and data.device != "cpu":
@@ -84,7 +85,12 @@ def train(data_config, model_config, model_mode, n_blocks=0, n_tokens=0, biaffin
         for step, batch in enumerate(data.train_loader):
             global_step += 1
             norm_loss, punc_loss = model(*batch)
-            loss = norm_loss + punc_loss
+            if model_mode == "norm_only":
+                loss = norm_loss
+            elif model_mode == "punc_only":
+                loss = punc_loss
+            else:
+                loss = norm_loss + punc_loss
             norm_loss = norm_loss.item()
             punc_loss = punc_loss.item()
             
@@ -109,10 +115,13 @@ def train(data_config, model_config, model_mode, n_blocks=0, n_tokens=0, biaffin
         writer.add_scalar(f"time/dev", time.time() - t0, epoch)
         t0 = time.time()
 
-        for name, score in dev_norm_score.items():
-            writer.add_scalar(f"dev_norm/{name}", score["f1-score"], epoch)
-        for name, score in dev_punc_score.items():
-            writer.add_scalar(f"dev_punc/{name}", score["f1-score"], epoch)
+        if model_mode != "punc_only":
+            for name, score in dev_norm_score.items():
+                writer.add_scalar(f"dev_norm/{name}", score["f1-score"], epoch)
+        
+        if model_mode != "norm_only":
+            for name, score in dev_punc_score.items():
+                writer.add_scalar(f"dev_punc/{name}", score["f1-score"], epoch)
 
         dev_f1_norm = dev_norm_score["micro avg"]["f1-score"]
         dev_f1_punc = dev_punc_score["micro avg"]["f1-score"]
@@ -121,22 +130,25 @@ def train(data_config, model_config, model_mode, n_blocks=0, n_tokens=0, biaffin
         test_norm_score, test_punc_score = evaluate(model, data.test_loader, data.norm_labels, data.punc_labels)
         writer.add_scalar(f"time/test", time.time() - t0, epoch)
 
-        for name, score in test_norm_score.items():
-            writer.add_scalar(f"test_norm/{name}", score["f1-score"], epoch)
-        for name, score in test_punc_score.items():
-            writer.add_scalar(f"test_punc/{name}", score["f1-score"], epoch)
+        if model_mode != "punc_only":
+            for name, score in test_norm_score.items():
+                writer.add_scalar(f"test_norm/{name}", score["f1-score"], epoch)
+        
+        if model_mode != "norm_only":
+            for name, score in test_punc_score.items():
+                writer.add_scalar(f"test_punc/{name}", score["f1-score"], epoch)
 
         test_f1_norm = test_norm_score["micro avg"]["f1-score"]
         test_f1_punc = test_punc_score["micro avg"]["f1-score"]
         print(f"Test score: norm = {test_f1_norm:.5f}, punc = {test_f1_punc:.5f}")
 
-        if dev_f1_norm > best_f1_scores["norm"]:
+        if dev_f1_norm > best_f1_scores["norm"] and model_mode != "punc_only":
             best_f1_scores["norm"] = dev_f1_norm
             print(f"Best F1 norm: dev={dev_f1_norm:.5f} & test={test_f1_norm:.5f}")
             writer.add_text("test_norm", str(test_norm_score), epoch)
             writer.add_scalar(f"F1_score/norm", test_f1_norm, epoch)
         
-        if dev_f1_punc > best_f1_scores["punc"]:
+        if dev_f1_punc > best_f1_scores["punc"] and model_mode != "norm_only":
             best_f1_scores["punc"] = dev_f1_punc
             print(f"Best F1 punc: dev={dev_f1_punc:.5f} & test={test_f1_punc:.5f}")
             writer.add_text("test_punc", str(test_punc_score), epoch)
