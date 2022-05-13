@@ -1,9 +1,9 @@
-python main.py --mode norm_only --n-blocks 0 --n-tokens 0 --bert-config configs/config.velectra.json
-python main.py --mode punc_only --n-blocks 0 --n-tokens 0 --bert-config configs/config.velectra.json
-python main.py --mode norm_to_punc --n-blocks 0 --n-tokens 0 --bert-config configs/config.velectra.json
-python main.py --mode punc_to_norm --n-blocks 0 --n-tokens 0 --bert-config configs/config.velectra.json
+python main.py --mode norm_only --bert-config configs/config.velectra.json
+python main.py --mode punc_only --bert-config configs/config.velectra.json
+python main.py --mode norm_to_punc --bert-config configs/config.velectra.json
+python main.py --mode punc_to_norm --bert-config configs/config.velectra.json
 
-python main.py --mode norm_only --n-blocks 0 --n-tokens 50 --bert-config configs/config.velectra.json
-python main.py --mode punc_only --n-blocks 0 --n-tokens 50 --bert-config configs/config.velectra.json
-python main.py --mode norm_to_punc --n-blocks 0 --n-tokens 50 --bert-config configs/config.velectra.json
-python main.py --mode punc_to_norm --n-blocks 0 --n-tokens 50 --bert-config configs/config.velectra.json
+python main.py --mode norm_only --surrounding-context --bert-config configs/config.velectra.json
+python main.py --mode punc_only --surrounding-context --bert-config configs/config.velectra.json
+python main.py --mode norm_to_punc --surrounding-context --bert-config configs/config.velectra.json
+python main.py --mode punc_to_norm --surrounding-context --bert-config configs/config.velectra.json

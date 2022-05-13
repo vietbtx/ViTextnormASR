@@ -111,8 +111,6 @@ def train(data_config, model_config, model_mode, use_sc=True, biaffine=True):
             scheduler.step()
             optimizer.zero_grad()
             torch.cuda.empty_cache()
-            if step > 10:
-                break
 
         writer.add_scalar(f"time/train", time.time() - t0, epoch)
         t0 = time.time()
@@ -148,14 +146,16 @@ def train(data_config, model_config, model_mode, use_sc=True, biaffine=True):
         test_f1_punc = test_punc_score["micro avg"]["f1-score"]
         print(f"Test score: norm = {test_f1_norm:.5f}, punc = {test_f1_punc:.5f}")
 
-        if dev_f1_norm > best_f1_scores["norm"] and model_mode != "punc_only":
-            best_f1_scores["norm"] = dev_f1_norm
-            print(f"Best F1 norm: dev = {dev_f1_norm:.5f} & test = {test_f1_norm:.5f}")
+        if model_mode != "punc_only":
+            if dev_f1_norm > best_f1_scores["norm"]:
+                best_f1_scores["norm"] = dev_f1_norm
+                print(f"Best F1 norm: dev = {dev_f1_norm:.5f} & test = {test_f1_norm:.5f}")
             writer.add_text("test_norm", str(test_norm_score), epoch)
             writer.add_scalar(f"F1_score/norm", test_f1_norm, epoch)
         
-        if dev_f1_punc > best_f1_scores["punc"] and model_mode != "norm_only":
-            best_f1_scores["punc"] = dev_f1_punc
-            print(f"Best F1 punc: dev = {dev_f1_punc:.5f} & test = {test_f1_punc:.5f}")
+        if model_mode != "norm_only":
+            if dev_f1_punc > best_f1_scores["punc"]:
+                best_f1_scores["punc"] = dev_f1_punc
+                print(f"Best F1 punc: dev = {dev_f1_punc:.5f} & test = {test_f1_punc:.5f}")
             writer.add_text("test_punc", str(test_punc_score), epoch)
             writer.add_scalar(f"F1_score/punc", test_f1_punc, epoch)
