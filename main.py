@@ -7,9 +7,8 @@ if __name__ == "__main__":
     parser.add_argument('--data-config', type=str, default="configs/config.norm.json")
     parser.add_argument('--bert-config', type=str, default="configs/config.velectra.json")
     parser.add_argument('--mode', type=str, default="nojoint")
-    parser.add_argument('--n-blocks', type=int, default=0)
-    parser.add_argument('--n-tokens', type=int, default=0)
-    parser.add_argument('--use-biaffine', action='store_true', default=False)
+    parser.add_argument('--surrounding-context', action='store_true')
+    parser.add_argument('--use-biaffine', action='store_true')
     
     args = parser.parse_args()
 
@@ -17,7 +16,6 @@ if __name__ == "__main__":
         args.data_config,
         args.bert_config,
         args.mode,
-        n_blocks=args.n_blocks,
-        n_tokens=args.n_tokens,
+        use_sc=args.surrounding_context,
         biaffine=args.use_biaffine
     )

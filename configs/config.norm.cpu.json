@@ -8,7 +8,7 @@
   "block_size": 100,
   "logging": {
     "tensorboard": "logs",
-    "cookie": "cookie"
+    "cookie": "__pycache__"
   },
   "hyperparams": {
     "hidden_dim": 512,

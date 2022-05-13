@@ -1,80 +1,39 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from utils.utils import get_model, read_json
+from utils.utils import _tokenizer, get_model, read_json
 from .layers import AttentionLayer, BiaffineAttention
 
 class BERTModel(nn.Module):
 
-    def __init__(self, model_config, norm_labels, punc_labels, hidden_dim, model_mode, use_biaffine=True):
+    def __init__(self, model_config, tokenizer, norm_labels, punc_labels, hidden_dim, model_mode, use_biaffine=True):
         super().__init__()
         self.bert = get_model(model_config)
-        self.attn = AttentionLayer(self.bert.config.hidden_size, hidden_dim)
-        hidden_dim = self.attn.output_dim
-        mlp_dim = hidden_dim // 2
-        self.n_norm_labels = len(norm_labels)
-        self.n_punc_labels = len(punc_labels)
+        # self.attn = AttentionLayer(self.bert.config.hidden_size, hidden_dim)
+        hidden_dim = self.bert.config.hidden_size
+        self.norm_labels = norm_labels
+        self.punc_labels = punc_labels
 
         self.mode = model_mode
-        self.use_biaffine = use_biaffine
+        self.tokenizer = tokenizer
         
         if self.mode == "nojoint":
-            self.norm_mlp = nn.Linear(hidden_dim, mlp_dim)
-            self.punc_mlp = nn.Linear(hidden_dim, mlp_dim)
+            self.norm_decoder = nn.Linear(hidden_dim, len(norm_labels))
+            self.punc_decoder = nn.Linear(hidden_dim, len(punc_labels))
         elif self.mode == "norm_to_punc":
-            self.norm_mlp = nn.Linear(hidden_dim, mlp_dim)
-            self.punc_mlp = nn.Linear(hidden_dim+mlp_dim, mlp_dim)
+            self.norm_decoder = nn.Linear(hidden_dim, len(norm_labels))
+            self.punc_decoder = nn.Linear(hidden_dim*2+len(norm_labels), len(punc_labels))
         elif self.mode == "punc_to_norm":
-            self.norm_mlp = nn.Linear(hidden_dim+mlp_dim, mlp_dim)
-            self.punc_mlp = nn.Linear(hidden_dim, mlp_dim)
+            self.norm_decoder = nn.Linear(hidden_dim*2+len(punc_labels), len(norm_labels))
+            self.punc_decoder = nn.Linear(hidden_dim, len(punc_labels))
 
-        if self.use_biaffine:
-            self.norm_decoder = BiaffineAttention(mlp_dim, self.n_norm_labels)
-            self.punc_decoder = BiaffineAttention(mlp_dim, self.n_punc_labels)
-        else:
-            self.norm_decoder = nn.Linear(mlp_dim, self.n_norm_labels)
-            self.punc_decoder = nn.Linear(mlp_dim, self.n_punc_labels)
-        
         self.norm_criterion = nn.CrossEntropyLoss()
         self.punc_criterion = nn.CrossEntropyLoss()
     
     @classmethod
-    def from_config(cls, model_config, norm_labels, punc_labels, hidden_dim, model_mode, use_biaffine=True):
+    def from_config(cls, model_config, tokenizer, norm_labels, punc_labels, hidden_dim, model_mode, use_biaffine=True):
         model_config = read_json(model_config)["pretrained_model"]
-        return cls(model_config, norm_labels, punc_labels, hidden_dim, model_mode, use_biaffine)
-
-    def forward_encoders(self, input_ids, mask_ids, next_blocks=None, prev_blocks=None):
-        bert_output = self.bert(input_ids, mask_ids)[0]
-        if next_blocks is not None and prev_blocks is not None:
-            with torch.no_grad():
-                next_blocks = [self.bert(block)[0] for block in next_blocks]
-                prev_blocks = [self.bert(block)[0] for block in prev_blocks]
-                next_blocks = torch.cat(next_blocks, 1)
-                prev_blocks = torch.cat(prev_blocks, 1)
-            bert_output = torch.cat((prev_blocks, bert_output, next_blocks), 1)
-        return bert_output, next_blocks, prev_blocks
-    
-    def forward_hidden_layers(self, bert_output, next_blocks, prev_blocks):
-        if self.attn is None:
-            return bert_output
-        if next_blocks is not None and prev_blocks is not None:
-            bert_output = torch.cat((prev_blocks, bert_output, next_blocks), 1)
-        hidden_output, _ = self.attn(bert_output)
-        if next_blocks is not None and prev_blocks is not None:
-            next_dim = next_blocks.shape[1]
-            prev_dim = prev_blocks.shape[1]
-            hidden_output = hidden_output[:,prev_dim:-next_dim,:].contiguous()
-        hidden_output = torch.tanh(hidden_output)
-        return hidden_output
-    
-    def forward_blocks(self, next_blocks=None, prev_blocks=None):
-        if next_blocks is not None and prev_blocks is not None:
-            with torch.no_grad():
-                next_blocks = [self.forward_bert(block) for block in next_blocks]
-                prev_blocks = [self.forward_bert(block) for block in prev_blocks]
-                next_blocks = torch.cat(next_blocks, 1)
-                prev_blocks = torch.cat(prev_blocks, 1)
-        return next_blocks, prev_blocks
+        return cls(model_config, tokenizer, norm_labels, punc_labels, hidden_dim, model_mode, use_biaffine)
 
     def forward_bert(self, input_ids, mask_ids=None):
         bert_output = self.bert(input_ids, mask_ids)[0]
@@ -82,30 +41,73 @@ class BERTModel(nn.Module):
             bert_output.register_hook(lambda grad: torch.zeros_like(grad))
         return bert_output
 
-    def forward(self, input_ids, mask_ids, norm_ids=None, punc_ids=None, next_blocks=None, prev_blocks=None):
-        next_blocks, prev_blocks = self.forward_blocks(next_blocks, prev_blocks)
+    def forward_norm(self, bert_output, norm_logits, words, input_ids, mask_ids):
+        norm_preds = torch.argmax(norm_logits, -1).detach().cpu().numpy()
+        new_token_ids = []
+        for tokens, norms in zip(words, norm_preds):
+            token_ids = []
+            for token, norm in zip(tokens, norms):
+                if len(token) == 0: continue
+                if self.norm_labels[norm] == "B-CAP":
+                    token = token.capitalize()
+                token_ids += _tokenizer(self.tokenizer, token)
+            token_ids = [self.tokenizer.cls_token_id] + token_ids + [self.tokenizer.sep_token_id]
+            new_token_ids.append(token_ids)
+        max_len = max(len(ids) for ids in new_token_ids)
+        new_mask_ids = [[1]*len(ids)+[0]*(max_len-len(ids)) for ids in new_token_ids]
+        new_token_ids = [ids+[self.tokenizer.pad_token_id]*(max_len-len(ids)) for ids in new_token_ids]
+        with torch.no_grad():
+            new_mask_ids = torch.LongTensor(new_mask_ids).to(mask_ids.device)
+            new_token_ids = torch.LongTensor(new_token_ids).to(input_ids.device)
+            norm_features = self.forward_bert(new_token_ids, new_mask_ids)[:, :1, :]
+            norm_features = torch.tile(norm_features, [1, norm_logits.shape[1], 1])
+        norm_features = torch.cat((bert_output, norm_features, norm_logits), -1)
+        return norm_features
+    
+    def forward_punc(self, bert_output, punc_logits, words, input_ids, mask_ids):
+        punc_preds = torch.argmax(punc_logits, -1).detach().cpu().numpy()
+        new_token_ids = []
+        punc_symbols = [".", ",", "?", "!", ":", ";", "-", ""]
+        for tokens, puncs in zip(words, punc_preds):
+            token_ids = []
+            new_tokens = []
+            for token, punc in zip(tokens, puncs):
+                if len(token) == 0: continue
+                new_tokens.append(token)
+                if len(punc_symbols[punc]) > 0:
+                    new_tokens.append(punc_symbols[punc])
+            for i in range(len(new_tokens)-1):
+                if new_tokens[i] in [".", "?", "!"]:
+                    new_tokens[i+1] = new_tokens[i+1].capitalize()
+            for token in new_tokens:
+                token_ids += _tokenizer(self.tokenizer, token)
+            token_ids = [self.tokenizer.cls_token_id] + token_ids[:510] + [self.tokenizer.sep_token_id]
+            new_token_ids.append(token_ids)
+        max_len = max(len(ids) for ids in new_token_ids)
+        new_mask_ids = [[1]*len(ids)+[0]*(max_len-len(ids)) for ids in new_token_ids]
+        new_token_ids = [ids+[self.tokenizer.pad_token_id]*(max_len-len(ids)) for ids in new_token_ids]
+        with torch.no_grad():
+            new_mask_ids = torch.LongTensor(new_mask_ids).to(mask_ids.device)
+            new_token_ids = torch.LongTensor(new_token_ids).to(input_ids.device)
+            punc_features = self.forward_bert(new_token_ids, new_mask_ids)[:, :1, :]
+            punc_features = torch.tile(punc_features, [1, punc_logits.shape[1], 1])
+        punc_features = torch.cat((bert_output, punc_features, punc_logits), -1)
+        return punc_features
+
+    def forward(self, words, input_ids, mask_ids, norm_ids=None, punc_ids=None):
         bert_output = self.forward_bert(input_ids, mask_ids)
-        hidden_output = self.forward_hidden_layers(bert_output, next_blocks, prev_blocks)
 
-        if self.mode == "nojoint":
-            norm_mlp_output = self.norm_mlp(hidden_output)
-            punc_mlp_output = self.punc_mlp(hidden_output)
-        elif self.mode == "norm_to_punc":
-            norm_mlp_output = self.norm_mlp(hidden_output)
-            punc_mlp_output = self.punc_mlp(torch.cat((hidden_output, norm_mlp_output), -1))
+        if self.mode == "norm_to_punc":
+            norm_logits = self.norm_decoder(bert_output)
+            norm_features = self.forward_norm(bert_output, norm_logits, words, input_ids, mask_ids)
+            punc_logits = self.punc_decoder(norm_features)
         elif self.mode == "punc_to_norm":
-            punc_mlp_output = self.punc_mlp(hidden_output)
-            norm_mlp_output = self.norm_mlp(torch.cat((hidden_output, punc_mlp_output), -1))
-
-        norm_mlp_output = torch.tanh(norm_mlp_output)
-        punc_mlp_output = torch.tanh(punc_mlp_output)
-
-        if self.use_biaffine:
-            norm_logits = self.norm_decoder(norm_mlp_output, punc_mlp_output)
-            punc_logits = self.punc_decoder(punc_mlp_output, norm_mlp_output)
+            punc_logits = self.punc_decoder(bert_output)
+            punc_features = self.forward_punc(bert_output, punc_logits, words, input_ids, mask_ids)
+            norm_logits = self.norm_decoder(punc_features)
         else:
-            punc_logits = self.punc_decoder(punc_mlp_output)
-            norm_logits = self.norm_decoder(norm_mlp_output)
+            norm_logits = self.norm_decoder(bert_output)
+            punc_logits = self.punc_decoder(bert_output)
 
         if norm_ids is None and punc_ids is None:
             return norm_logits, punc_logits

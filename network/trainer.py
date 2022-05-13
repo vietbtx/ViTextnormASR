@@ -34,8 +34,8 @@ def evaluate(model, data_loader, norm_dict, punc_dict):
     with torch.no_grad():
         pred_labels = {"norm": [], "punc": []}
         goal_labels = {"norm": [], "punc": []}
-        for input_ids, mask_ids, norm_ids, punc_ids, next_blocks, prev_blocks in data_loader:
-            norm_logits, punc_logits = model(input_ids, mask_ids, next_blocks=next_blocks, prev_blocks=prev_blocks)
+        for words, input_ids, mask_ids, norm_ids, punc_ids in data_loader:
+            norm_logits, punc_logits = model(words, input_ids, mask_ids)
             norm_labels = norm_ids.view(-1).detach().cpu().numpy()
             punc_labels = punc_ids.view(-1).detach().cpu().numpy()
             pred_norm_labels = torch.argmax(norm_logits, -1).view(-1).detach().cpu().numpy()
@@ -64,11 +64,14 @@ def evaluate(model, data_loader, norm_dict, punc_dict):
     return norm_score, punc_score
 
 
-def train(data_config, model_config, model_mode, n_blocks=0, n_tokens=0, biaffine=True):
-    data = Data.from_config(data_config, model_config, n_blocks, n_tokens)
-    writer = SummaryWriter(f"{data.tensorboard_dir}/{model_mode}/{n_blocks}-{n_tokens}-{biaffine}")
+def train(data_config, model_config, model_mode, use_sc=True, biaffine=True):
+    data = Data.from_config(data_config, model_config, use_sc)
+    phase_name = f"{model_mode}"
+    if use_sc: phase_name = f"{phase_name}_use_sc"
+    if biaffine: phase_name = f"{phase_name}_biaffine"
+    writer = SummaryWriter(f"{data.tensorboard_dir}/{phase_name}")
     mode = "nojoint" if model_mode in ["norm_only", "punc_only"] else model_mode
-    model = BERTModel.from_config(model_config, data.norm_labels, data.punc_labels, data.hidden_dim, mode, biaffine)
+    model = BERTModel.from_config(model_config, data.tokenizer, data.norm_labels, data.punc_labels, data.hidden_dim, mode, biaffine)
     model.to(data.device)
     optimizer = init_default_optimizer(model, data.learning_rate, 0.001)
     if amp is not None and data.device != "cpu":
@@ -95,7 +98,6 @@ def train(data_config, model_config, model_mode, n_blocks=0, n_tokens=0, biaffin
             punc_loss = punc_loss.item()
             
             end = "\n" if step % (total_step//4) == 0 else "\r"
-            phase_name = f"{model_mode}/{n_blocks}-{n_tokens}-{biaffine}"
             print(f"Phase: {phase_name} - epoch: {epoch} - step: {step+1}/{total_step} - loss: {norm_loss:.5f}/{punc_loss:.5f}", end=end)
             writer.add_scalar("loss/norm", norm_loss, global_step)
             writer.add_scalar("loss/punc", punc_loss, global_step)
@@ -107,7 +109,11 @@ def train(data_config, model_config, model_mode, n_blocks=0, n_tokens=0, biaffin
                 loss.backward()
             optimizer.step()
             scheduler.step()
-            model.zero_grad()
+            optimizer.zero_grad()
+            torch.cuda.empty_cache()
+            if step > 10:
+                break
+
         writer.add_scalar(f"time/train", time.time() - t0, epoch)
         t0 = time.time()
 
@@ -144,12 +150,12 @@ def train(data_config, model_config, model_mode, n_blocks=0, n_tokens=0, biaffin
 
         if dev_f1_norm > best_f1_scores["norm"] and model_mode != "punc_only":
             best_f1_scores["norm"] = dev_f1_norm
-            print(f"Best F1 norm: dev={dev_f1_norm:.5f} & test={test_f1_norm:.5f}")
+            print(f"Best F1 norm: dev = {dev_f1_norm:.5f} & test = {test_f1_norm:.5f}")
             writer.add_text("test_norm", str(test_norm_score), epoch)
             writer.add_scalar(f"F1_score/norm", test_f1_norm, epoch)
         
         if dev_f1_punc > best_f1_scores["punc"] and model_mode != "norm_only":
             best_f1_scores["punc"] = dev_f1_punc
-            print(f"Best F1 punc: dev={dev_f1_punc:.5f} & test={test_f1_punc:.5f}")
+            print(f"Best F1 punc: dev = {dev_f1_punc:.5f} & test = {test_f1_punc:.5f}")
             writer.add_text("test_punc", str(test_punc_score), epoch)
             writer.add_scalar(f"F1_score/punc", test_f1_punc, epoch)
