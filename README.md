@@ -10,7 +10,7 @@ Run all the following bash files:
 * ./run_vibert.sh
 * ./run_velectra.sh
 
-Reference:
+## Reference:
 
     @{vitextnormasr,
     title     = {{Transformer-based Joint Learning Approach for Text Normalization in Vietnamese ASR}},
