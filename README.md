@@ -1,6 +1,17 @@
 # ViTextnormASR
 
 ## Step 1:
-Run create_dataset.py or download our dataset from <a href="http://smu.sg/tr0">here</a> and move to the dataset folder
+Create a folder named `dataset`
 ## Step 2:
-Run all these bash files
+Contact us to get our full dataset or try our sample dataset from directory `samples` and extract them to `dataset`
+## Step 3:
+Run all the following bash files:
+⋅⋅* ./run_mbert.sh
+⋅⋅* ./run_vibert.sh
+⋅⋅* ./run_velectra.sh
+
+@{vitextnorm,
+title     = {{Transformer-based Joint Learning Approach for Text Normalization in Vietnamese ASR}},
+author    = {Viet The Bui, Tho Chi Luong, Oanh Thi Tran},
+year      = {2022}
+}
